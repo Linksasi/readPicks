@@ -1,23 +1,81 @@
-const { globalShortcut, clipboard } = require('electron');
-const { execFile } = require('child_process');
-const { load } = require('./config');
-
 // 全局热键 + 模拟复制取词（nextai 快照恢复方案）：
 // 保存剪贴板 → 清空 → 模拟 Ctrl+C → 读取 → 恢复原内容（含图片/HTML）
+// PowerShell 进程常驻：应用生命周期内只启动一次，避免每次按键 400ms+ 的进程启动开销
+
+const { globalShortcut, clipboard } = require('electron');
+const { spawn, execFile } = require('child_process');
+const { load } = require('./config');
 
 let isSimulating = false;
 let watchSync = null;   // clipboard-watch 模块的回调，恢复后同步其 last
+let onStart = null;     // 取词开始前的回调（用于立即显示「取词中」）
 let handler = null;     // async (text) => {}
 let lastQuery = { text: '', ts: 0 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ---------- 常驻 PowerShell ----------
+let ps = null;
+let psQueue = Promise.resolve();
+let psPending = null;
+
+function ensurePs() {
+  if (ps && ps.exitCode === null) return ps;
+  ps = spawn('powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', '-'],
+    { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  ps.stderr.on('data', () => {});
+  ps.stdout.on('data', (d) => {
+    if (psPending && d.toString().includes('__DONE__')) {
+      const p = psPending;
+      psPending = null;
+      p();
+    }
+  });
+  ps.on('exit', () => { ps = null; psPending = null; });
+  return ps;
+}
+
+/** 通过常驻进程发送一次 Ctrl+C（队列化，避免并发写 stdin） */
+function sendCopy() {
+  const p = ensurePs();
+  const job = psQueue.then(() => new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (psPending === finish) psPending = null;
+      resolve();
+    };
+    const timer = setTimeout(finish, 1500); // 保险：1.5s 未确认也继续
+    psPending = finish;
+    p.stdin.write("$w = New-Object -ComObject wscript.shell; $w.SendKeys('^c'); Write-Output '__DONE__'\n");
+  }));
+  psQueue = job.catch(() => {});
+  return job;
+}
+
+/** 兼容旧调用方式（备用路径） */
+function sendCopyOnce() {
+  return new Promise((resolve) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command',
+        "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys('^c')"],
+      { windowsHide: true },
+      () => resolve()
+    );
+  });
+}
+
 function setWatchSync(fn) {
   watchSync = fn;
 }
 
-function register(cb) {
+function register(cb, onStartCb) {
   handler = cb;
+  onStart = onStartCb || null;
   unregister();
   const cfg = load();
   try {
@@ -34,6 +92,7 @@ function unregister() {
 
 function onHotkey() {
   if (isSimulating) return;
+  if (onStart) onStart(); // 立即弹「取词中」窗口，与取词并行
   grabSelection().then((text) => {
     if (!text) return;
     if (text === lastQuery.text && Date.now() - lastQuery.ts < 3000) return; // 去重

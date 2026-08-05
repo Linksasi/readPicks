@@ -200,7 +200,8 @@ function registerIpc() {
   ipcMain.handle('config:get', () => config.load());
   ipcMain.handle('config:set', (_e, patch) => {
     const cfg = config.update(patch);
-    hotkey.register(handleQuery); // 热键热更新
+    hotkey.register(handleQuery, () =>
+      windowMgr.showPopup({ kind: 'unknown', raw: '', loading: true })); // 热键热更新
     clipboardWatch.start(handleQuery);
     return cfg;
   });
@@ -268,7 +269,8 @@ if (!gotLock) {
     registerIpc();
     createTray();
     windowMgr.createPopup(); // 预创建悬浮窗，热键首次触发零等待
-    const ok = hotkey.register(handleQuery);
+    const ok = hotkey.register(handleQuery, () =>
+      windowMgr.showPopup({ kind: 'unknown', raw: '', loading: true }));
     if (!ok) console.warn('[hotkey] 注册失败，可能与其他应用冲突');
     hotkey.setWatchSync((t) => clipboardWatch.sync(t));
     clipboardWatch.start(handleQuery);
