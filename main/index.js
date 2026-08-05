@@ -140,6 +140,8 @@ function registerIpc() {
   ipcMain.on('popup:hide', () => windowMgr.hidePopup());
   ipcMain.on('popup:pin', (_e, v) => windowMgr.setPinned(!!v));
 
+  ipcMain.handle('open-settings', () => windowMgr.createSettings());
+
   ipcMain.handle('note:set', (_e, word, note) => { db.setNote(word, note); return true; });
 
   ipcMain.handle('export-anki', async () => {

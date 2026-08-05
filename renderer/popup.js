@@ -185,6 +185,7 @@ function speak(type) {
 document.getElementById('speak-en').onclick = () => speak(1);
 document.getElementById('speak-us').onclick = () => speak(2);
 document.getElementById('close').onclick = () => api.hidePopup();
+document.getElementById('settings').onclick = () => api.openSettings();
 document.getElementById('s-copy').onclick = async () => {
   const t = document.getElementById('s-trans').textContent;
   if (t) { await navigator.clipboard.writeText(t); document.getElementById('s-copy').textContent = '已复制 ✓'; }

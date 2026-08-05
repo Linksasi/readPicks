@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('tranen', {
   query: (text) => ipcRenderer.invoke('query', text),
   onLookupResult: (cb) => ipcRenderer.on('lookup-result', (_e, payload) => cb(payload)),
   hidePopup: () => ipcRenderer.send('popup:hide'),
+  openSettings: () => ipcRenderer.invoke('open-settings'),
   pin: (v) => ipcRenderer.send('popup:pin', v),
   noteSet: (word, note) => ipcRenderer.invoke('note:set', word, note),
   exportAnki: () => ipcRenderer.invoke('export-anki'),
