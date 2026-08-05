@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'">
+<title>TranEn 今日复习</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2937; --muted: #6b7280;
+  --accent: #2563eb; --border: #e5e7eb; --chip-bg: #eff6ff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f2937; --fg: #e5e7eb; --muted: #9ca3af;
+    --accent: #60a5fa; --border: #374151; --chip-bg: #1e3a5f;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; padding: 18px; }
+.top { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; }
+.close { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 14px; }
+.card {
+  margin-top: 16px; min-height: 180px; border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  transition: background .15s;
+}
+.card:hover { background: var(--chip-bg); }
+.card .hint { color: var(--muted); font-size: 12px; }
+.word { font-size: 30px; font-weight: 700; }
+.cloze { font-size: 17px; line-height: 1.6; }
+.cloze .blank { color: var(--accent); font-weight: 600; }
+.phon { color: var(--muted); }
+.back-def { font-size: 16px; line-height: 1.6; }
+.back-ctx { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.actions { display: flex; gap: 10px; margin-top: 16px; }
+.actions button {
+  flex: 1; padding: 10px 0; border-radius: 10px; border: none;
+  font-size: 15px; cursor: pointer; font-weight: 600;
+}
+#again { background: #fee2e2; color: #b91c1c; }
+#hard  { background: #fef3c7; color: #92400e; }
+#good  { background: #dcfce7; color: #166534; }
+.done { text-align: center; margin-top: 40px; font-size: 18px; }
+.done .sub { color: var(--muted); font-size: 13px; margin-top: 8px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <span id="progress"></span>
+    <button class="close" id="close">✕</button>
+  </div>
+
+  <div id="card" class="card hidden">
+    <div id="front" class="front"></div>
+    <div id="back" class="hidden"></div>
+  </div>
+
+  <div class="actions hidden" id="actions">
+    <button id="again">忘记</button>
+    <button id="hard">模糊</button>
+    <button id="good">认识</button>
+  </div>
+
+  <div id="done" class="done hidden">
+    <div>🎉 今日复习完成</div>
+    <div class="sub" id="done-sub"></div>
+  </div>
+
+<script src="review.js"></script>
+</body>
+</html>

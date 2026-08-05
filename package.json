@@ -1,0 +1,43 @@
+{
+  "name": "tran-en",
+  "version": "0.1.0",
+  "description": "划词查词 + 语境翻译 + 生词记忆库 (Windows)",
+  "main": "main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^37.10.3",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "supermemo": "^2.0.23"
+  },
+  "build": {
+    "appId": "com.tranen.app",
+    "productName": "TranEn",
+    "files": [
+      "main/**",
+      "renderer/**",
+      "assets/**",
+      "preload.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

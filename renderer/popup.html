@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src https: data:; media-src https:">
+<title>TranEn</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="card" class="card">
+    <!-- 头部：拖动区 -->
+    <header id="header">
+      <button id="pin" class="icon-btn" title="钉住">📌</button>
+      <span id="drag-zone"></span>
+      <button id="close" class="icon-btn" title="关闭 (Esc)">✕</button>
+    </header>
+
+    <!-- 加载态 -->
+    <div id="loading" class="loading hidden">查询中…</div>
+
+    <!-- 单词卡 -->
+    <div id="word-view" class="view hidden">
+      <div class="word-row">
+        <h1 id="word"></h1>
+        <span id="phonetic" class="phonetic"></span>
+        <button id="speak-en" class="icon-btn" title="英式发音">🇬🇧</button>
+        <button id="speak-us" class="icon-btn" title="美式发音">🇺🇸</button>
+      </div>
+      <div id="badges" class="badges"></div>
+      <ul id="defs" class="defs"></ul>
+      <div id="meta" class="meta"></div>
+
+      <!-- 语境区 -->
+      <section id="context-section" class="section hidden">
+        <div class="section-title">语境句子（本句译法）</div>
+        <p id="context" class="context"></p>
+        <p id="context-trans" class="context-trans"></p>
+        <p id="word-in-sentence" class="word-in-sentence hidden"></p>
+        <p id="explain" class="explain hidden"></p>
+        <div id="other-words" class="other-words hidden"></div>
+      </section>
+
+      <section class="section">
+        <details id="history-details">
+          <summary>查询历史</summary>
+          <div id="history"></div>
+        </details>
+        <details id="note-details">
+          <summary>我的笔记</summary>
+          <textarea id="note" rows="3" placeholder="记录这个词的用法、记忆方法…"></textarea>
+          <button id="note-save" class="btn small">保存笔记</button>
+        </details>
+      </section>
+    </div>
+
+    <!-- 句子视图 -->
+    <div id="sentence-view" class="view hidden">
+      <div class="section-title">原文</div>
+      <p id="s-raw" class="context"></p>
+      <div class="section-title">译文</div>
+      <p id="s-trans" class="context-trans"></p>
+      <p id="s-error" class="error hidden"></p>
+      <button id="s-copy" class="btn">复制译文</button>
+    </div>
+
+    <p id="error" class="error hidden"></p>
+  </div>
+<script src="popup.js"></script>
+</body>
+</html>

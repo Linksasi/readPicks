@@ -1,0 +1,19 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+
+# 运行日志
+*.log
+
+# 测试临时产物（可重新生成）
+scripts/ecdict.mini.csv
+scripts/mini-ecdict.db
+scripts/mini-ecdict.zip
+
+# Reasonix 客户端运行时元数据
+.reasonix/
+
+# 未使用的空目录
+data/

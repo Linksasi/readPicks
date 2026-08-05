@@ -1,0 +1,23 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('tranen', {
+  query: (text) => ipcRenderer.invoke('query', text),
+  onLookupResult: (cb) => ipcRenderer.on('lookup-result', (_e, payload) => cb(payload)),
+  hidePopup: () => ipcRenderer.send('popup:hide'),
+  pin: (v) => ipcRenderer.send('popup:pin', v),
+  noteSet: (word, note) => ipcRenderer.invoke('note:set', word, note),
+  exportAnki: () => ipcRenderer.invoke('export-anki'),
+  dictStatus: () => ipcRenderer.invoke('dict:status'),
+  dictDownload: () => ipcRenderer.invoke('dict:download'),
+  dictInstallFile: () => ipcRenderer.invoke('dict:install-file'),
+  onDictProgress: (cb) => ipcRenderer.on('dict:progress', (_e, p) => cb(p)),
+  configGet: () => ipcRenderer.invoke('config:get'),
+  configSet: (patch) => ipcRenderer.invoke('config:set', patch),
+  reviewDue: () => ipcRenderer.invoke('review:due'),
+  reviewAnswer: (word, grade) => ipcRenderer.invoke('review:answer', word, grade),
+  reviewCount: () => ipcRenderer.invoke('review:count'),
+  wordsList: () => ipcRenderer.invoke('words:list'),
+  wordsRemove: (word) => ipcRenderer.invoke('words:remove', word),
+  wordsStats: () => ipcRenderer.invoke('words:stats'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+});
