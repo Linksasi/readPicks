@@ -268,6 +268,7 @@ if (!gotLock) {
   app.whenReady().then(() => {
     db.init();
     ecdict.init();
+    context.init(); // 加载上次复制的语境句子
     registerIpc();
     createTray();
     windowMgr.createPopup(); // 预创建悬浮窗，热键首次触发零等待

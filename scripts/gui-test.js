@@ -61,6 +61,24 @@ app.whenReady().then(async () => {
     const appleHist = db.getHistory('apple');
     check('db history', appleHist.length >= 1, `history=${appleHist.length}`);
 
+    // 3.5 语境回溯全链路：模拟复制句子 → 查词 → payload 带语境
+    const context = require('../main/context');
+    context.push('An apple a day keeps the doctor away.');
+    const ctxPayload = JSON.parse(await popup.webContents.executeJavaScript(`(async () => {
+      try { return JSON.stringify(await window.tranen.query('apple')); }
+      catch (e) { return 'ERR:' + e.message; }
+    })()`, true));
+    check('语境回溯 payload', ctxPayload.context && ctxPayload.context.includes('An apple'),
+      JSON.stringify(ctxPayload.context));
+    check('语境句译', !!ctxPayload.sentenceTranslation, ctxPayload.sentenceTranslation);
+    check('挖空语境句', !!ctxPayload.contextCloze && ctxPayload.contextCloze.includes('{{c1::apple}}'),
+      ctxPayload.contextCloze);
+    const ctxDom = await popup.webContents.executeJavaScript(`({
+      secShown: !document.getElementById('context-section').classList.contains('hidden'),
+      hintShown: !document.getElementById('context-hint').classList.contains('hidden')
+    })`, true);
+    check('语境区渲染', ctxDom.secShown && !ctxDom.hintShown, JSON.stringify(ctxDom));
+
     // 4. 复习接口
     const due = await popup.webContents.executeJavaScript(`window.tranen.reviewCount()`, true);
     console.log('INFO due count =', due);

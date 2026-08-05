@@ -2,12 +2,44 @@ const { getDataDir } = require('./config');
 const path = require('path');
 const fs = require('fs');
 
-// 剪贴板历史回溯：缓存最近复制过的文本，
-// 查单词时自动找 1 分钟内包含该词的句子作为语境（产品核心功能）。
+// 剪贴板历史回溯：记录最近复制过的文本，
+// 查单词时自动找最近包含该词的句子作为语境（产品核心功能）。
+// 持久化到磁盘：重启应用后仍保留，句子复制时间窗口 10 分钟。
 
-const WINDOW_MS = 60 * 1000;
+const WINDOW_MS = 10 * 60 * 1000;
 const MAX = 50;
+const HISTORY_FILE = () => path.join(getDataDir(), 'clipboard-history.json');
+
 let buf = [];
+let saveTimer = null;
+
+function persist() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      fs.mkdirSync(getDataDir(), { recursive: true });
+      fs.writeFileSync(HISTORY_FILE(), JSON.stringify(buf), 'utf8');
+    } catch (e) {
+      console.warn('[context] persist failed:', e.message);
+    }
+  }, 1500);
+}
+
+/** 启动时加载上次记录的复制内容（时间戳重置为当前，视为最近语境） */
+function init() {
+  try {
+    if (!fs.existsSync(HISTORY_FILE())) return;
+    const saved = JSON.parse(fs.readFileSync(HISTORY_FILE(), 'utf8'));
+    if (Array.isArray(saved)) {
+      const now = Date.now();
+      buf = saved.filter((x) => x && typeof x.text === 'string' && x.text.trim())
+        .slice(-MAX)
+        .map((x) => ({ text: x.text.trim(), ts: now }));
+    }
+  } catch (e) {
+    console.warn('[context] init failed:', e.message);
+  }
+}
 
 function push(text) {
   if (!text || typeof text !== 'string') return;
@@ -17,6 +49,7 @@ function push(text) {
   if (last && last.text === t) return; // 去重
   buf.push({ text: t, ts: Date.now() });
   if (buf.length > MAX) buf.shift();
+  persist();
 }
 
 function escapeRegExp(s) {
@@ -73,6 +106,7 @@ function makeCloze(context, word) {
 
 function clear() {
   buf = [];
+  persist();
 }
 
-module.exports = { push, findContext, makeCloze, containsWord, clear };
+module.exports = { init, push, findContext, makeCloze, containsWord, clear };

@@ -62,6 +62,13 @@ app.whenReady().then(async () => {
     console.log('PASS cloze:', cloze);
     if (!cloze.includes('{{c1::fox}}')) throw new Error('挖空失败');
 
+    // 4.5 语境持久化（防抖写盘后重新加载）
+    const histFile = path.join(config.getDataDir(), 'clipboard-history.json');
+    await new Promise((r) => setTimeout(r, 1800)); // 等防抖写盘
+    const saved = JSON.parse(fs.readFileSync(histFile, 'utf8'));
+    if (!saved.some((x) => x.text.includes('quick brown fox'))) throw new Error('语境持久化失败');
+    console.log('PASS context 持久化（clipboard-history.json）');
+
     // 5. 文本清洗 + 分类（PDF 断行）
     const clean = hotkey.cleanText('The quick brown\nfox jumps over\nthe lazy dog.');
     console.log('PASS clean:', JSON.stringify(clean));

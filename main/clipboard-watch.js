@@ -1,9 +1,11 @@
 const { clipboard } = require('electron');
 const hotkey = require('./hotkey');
+const context = require('./context');
 const { load } = require('./config');
 
-// 可选「复制即弹」：轮询剪贴板，文本变化且非自身模拟操作时回调。
-// 默认关闭；开启后用户在任意应用 Ctrl+C 复制 → 弹查询。
+// 剪贴板监听双职责：
+// 1. 始终记录复制内容到 context（供「语境句子」回溯——查词时自动找包含该词的句子）
+// 2. autoPopup 开启时，复制内容变化 → 直接触发查询（复制即弹）
 
 let timer = null;
 let last = '';
@@ -16,12 +18,12 @@ function start(onText) {
   stop();
   last = clipboard.readText();
   timer = setInterval(() => {
-    if (!load().autoPopup) return;
     if (hotkey.isBusy()) return; // 防递归：自身模拟复制期间跳过
     const t = clipboard.readText();
     if (t && t !== last) {
       last = t;
-      onText(t);
+      context.push(t); // 始终记录，供语境回溯
+      if (load().autoPopup) onText(t);
     }
   }, 800);
 }

@@ -63,6 +63,7 @@ function renderWord(p) {
   // 语境区
   const ctxSec = document.getElementById('context-section');
   if (p.context) {
+    document.getElementById('context-hint').classList.add('hidden');
     ctxSec.classList.remove('hidden');
     document.getElementById('context').innerHTML = highlightWord(p.context, p.word);
     const ct = document.getElementById('context-trans');
@@ -92,6 +93,8 @@ function renderWord(p) {
     } else ow.classList.add('hidden');
   } else {
     ctxSec.classList.add('hidden');
+    // 无语境时显示引导提示
+    document.getElementById('context-hint').classList.remove('hidden');
   }
 
   // 历史
