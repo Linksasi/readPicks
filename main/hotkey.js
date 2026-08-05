@@ -1,10 +1,14 @@
-// 全局热键 + 模拟复制取词（nextai 快照恢复方案）：
-// 保存剪贴板 → 清空 → 模拟 Ctrl+C → 读取 → 恢复原内容（含图片/HTML）
+// 全局热键 + 取词：
+// 1. 优先 Windows UI Automation 直读选中文本及其所在段落（不碰剪贴板，语境自动获取）
+// 2. 失败回退：模拟 Ctrl+C + 剪贴板快照恢复
 // PowerShell 进程常驻：应用生命周期内只启动一次，避免每次按键 400ms+ 的进程启动开销
 
 const { globalShortcut, clipboard } = require('electron');
 const { spawn, execFile } = require('child_process');
-const { load } = require('./config');
+const fs = require('fs');
+const path = require('path');
+const { load, getDataDir } = require('./config');
+const context = require('./context');
 
 let isSimulating = false;
 let watchSync = null;   // clipboard-watch 模块的回调，恢复后同步其 last
@@ -14,10 +18,11 @@ let lastQuery = { text: '', ts: 0 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- 常驻 PowerShell ----------
+// ---------- 常驻 PowerShell（带输出返回的命令通道） ----------
 let ps = null;
 let psQueue = Promise.resolve();
 let psPending = null;
+let psBuf = '';
 
 function ensurePs() {
   if (ps && ps.exitCode === null) return ps;
@@ -26,37 +31,48 @@ function ensurePs() {
     { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   ps.stderr.on('data', () => {});
   ps.stdout.on('data', (d) => {
-    if (psPending && d.toString().includes('__DONE__')) {
-      const p = psPending;
-      psPending = null;
-      p();
+    psBuf += d.toString();
+    let idx;
+    while ((idx = psBuf.indexOf('__DONE__')) >= 0) {
+      const out = psBuf.slice(0, idx);
+      psBuf = psBuf.slice(idx + '__DONE__'.length);
+      if (psPending) {
+        const p = psPending;
+        psPending = null;
+        p(out);
+      }
     }
   });
   ps.on('exit', () => { ps = null; psPending = null; });
   return ps;
 }
 
-/** 通过常驻进程发送一次 Ctrl+C（队列化，避免并发写 stdin） */
-function sendCopy() {
+/** 向常驻 PowerShell 发送命令，返回其 stdout 输出（不含 __DONE__ 标记） */
+function sendCommand(cmd, timeoutMs = 2000) {
   const p = ensurePs();
   const job = psQueue.then(() => new Promise((resolve) => {
     let done = false;
-    const finish = () => {
+    const finish = (out) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
       if (psPending === finish) psPending = null;
-      resolve();
+      resolve(out || '');
     };
-    const timer = setTimeout(finish, 1500); // 保险：1.5s 未确认也继续
+    const timer = setTimeout(() => finish(''), timeoutMs); // 保险超时
     psPending = finish;
-    p.stdin.write("$w = New-Object -ComObject wscript.shell; $w.SendKeys('^c'); Write-Output '__DONE__'\n");
+    p.stdin.write(`${cmd}; Write-Output '__DONE__'\n`);
   }));
   psQueue = job.catch(() => {});
   return job;
 }
 
-/** 兼容旧调用方式（备用路径） */
+/** 发送一次 Ctrl+C 模拟复制 */
+function sendCopy() {
+  return sendCommand("$w = New-Object -ComObject wscript.shell; $w.SendKeys('^c')");
+}
+
+/** 兼容旧调用方式（独立进程，备用） */
 function sendCopyOnce() {
   return new Promise((resolve) => {
     execFile(
@@ -68,6 +84,42 @@ function sendCopyOnce() {
     );
   });
 }
+
+// ---------- UIA 取词（不碰剪贴板） ----------
+
+let uiaPs1Path = null;
+function ensureUiaPs1() {
+  if (uiaPs1Path) return uiaPs1Path;
+  // 从 asar 内读取脚本（打包后 fs 也可读），写入数据目录供 PowerShell 加载（需 UTF-8 BOM）
+  const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'uia.ps1'), 'utf8');
+  const dest = path.join(getDataDir(), 'uia.ps1');
+  fs.writeFileSync(dest, '\uFEFF' + src, 'utf8');
+  uiaPs1Path = dest;
+  return dest;
+}
+
+/**
+ * UIA 取词：读取选中文本 + 所在段落。
+ * @returns {null|{selected:string, context:string}}
+ */
+async function grabViaUia() {
+  try {
+    const ps1 = ensureUiaPs1();
+    const out = await sendCommand(
+      `[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; . '${ps1}'; Get-TranenSelection | ConvertTo-Json -Compress`,
+      1500
+    );
+    const line = String(out).trim().split('\n').filter(Boolean).pop() || '{}';
+    const data = JSON.parse(line);
+    if (!data.ok || !data.selected) return null;
+    return { selected: data.selected.trim(), context: (data.context || '').trim() };
+  } catch (e) {
+    console.warn('[uia] 取词失败:', e.message);
+    return null;
+  }
+}
+
+// ---------- 热键注册 ----------
 
 function setWatchSync(fn) {
   watchSync = fn;
@@ -101,8 +153,19 @@ function onHotkey() {
   });
 }
 
-/** 模拟复制并读取选中文本，完成后恢复剪贴板原内容 */
+/**
+ * 取词：UIA 优先（不碰剪贴板、自动带语境段落），失败回退剪贴板方案。
+ */
 async function grabSelection() {
+  // 1) UIA 直读
+  const uia = await grabViaUia();
+  if (uia) {
+    // 选中文本所在段落 → 语境缓存（查词时自动匹配出句子）
+    if (uia.context && uia.context !== uia.selected) context.push(uia.context);
+    return uia.selected;
+  }
+
+  // 2) 回退：模拟复制 + 剪贴板快照恢复
   if (isSimulating) return '';
   isSimulating = true;
   try {
@@ -148,18 +211,6 @@ async function grabSelection() {
   }
 }
 
-function sendCopy() {
-  return new Promise((resolve) => {
-    execFile(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command',
-        "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys('^c')"],
-      { windowsHide: true },
-      () => resolve()
-    );
-  });
-}
-
 function isBusy() {
   return isSimulating;
 }
@@ -192,4 +243,4 @@ function classify(text) {
   return isWord ? 'word' : 'sentence';
 }
 
-module.exports = { register, unregister, grabSelection, cleanText, classify, setWatchSync, isBusy };
+module.exports = { register, unregister, grabSelection, cleanText, classify, setWatchSync, isBusy, grabViaUia, sendCommand };

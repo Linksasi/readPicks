@@ -27,6 +27,7 @@
       "renderer/**",
       "assets/**",
       "scripts/download-dict.js",
+      "scripts/uia.ps1",
       "preload.js",
       "package.json"
     ],
