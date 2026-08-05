@@ -2,14 +2,36 @@ const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
-// 数据目录固定为 %APPDATA%/tran-en，不依赖 app.name 解析
+// 数据目录固定为 %APPDATA%/readpicks，不依赖 app.name 解析
 // （electron scripts/xxx.js 等入口方式下 app.name 可能为 "Electron"，导致数据错位）
-const APP_DIR = 'tran-en';
+const APP_DIR = 'readpicks';
+const LEGACY_DIR = 'tran-en'; // 早期命名目录，首次启动自动迁移
 let dataDir = null;
 
 function getDataDir() {
   if (!dataDir) {
-    dataDir = path.join(app.getPath('appData'), APP_DIR);
+    const base = path.join(app.getPath('appData'), APP_DIR);
+    const legacy = path.join(app.getPath('appData'), LEGACY_DIR);
+    // 一次性迁移：旧目录存在且新目录不存在 → 整个目录重命名（同盘瞬时）
+    if (!fs.existsSync(base) && fs.existsSync(legacy)) {
+      try {
+        fs.renameSync(legacy, base);
+        console.log('[config] 数据目录已迁移:', legacy, '→', base);
+      } catch {
+        // 重命名失败（占用/跨卷）→ 复制关键数据
+        try {
+          fs.mkdirSync(base, { recursive: true });
+          for (const item of ['ecdict', 'words.db', 'config.json', 'clipboard-history.json', 'uia.ps1']) {
+            const s = path.join(legacy, item);
+            if (fs.existsSync(s)) fs.cpSync(s, path.join(base, item), { recursive: true });
+          }
+          console.log('[config] 数据目录已复制迁移:', legacy, '→', base);
+        } catch (e) {
+          console.warn('[config] 数据迁移失败（将使用新目录）:', e.message);
+        }
+      }
+    }
+    dataDir = base;
   }
   return dataDir;
 }

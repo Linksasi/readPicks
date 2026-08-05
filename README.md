@@ -46,9 +46,10 @@ npx electron-builder --win portable  # 免安装版
 
 ## 数据
 
-- 配置：`%APPDATA%/tran-en/config.json`（目录名为早期命名，保持不变以兼容已有数据）
-- 生词本：`%APPDATA%/tran-en/words.db`
-- 词典：`%APPDATA%/tran-en/ecdict/`
+- 数据目录：`%APPDATA%/readpicks/`（首次启动自动从早期命名的 `tran-en` 目录迁移词典/生词/配置）
+- 配置：`%APPDATA%/readpicks/config.json`
+- 生词本：`%APPDATA%/readpicks/words.db`
+- 词典：`%APPDATA%/readpicks/ecdict/`
 
 ## 技术栈
 
