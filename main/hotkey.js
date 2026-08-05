@@ -107,10 +107,11 @@ async function grabViaUia() {
     const ps1 = ensureUiaPs1();
     const out = await sendCommand(
       `[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; . '${ps1}'; Get-TranenSelection | ConvertTo-Json -Compress`,
-      1500
+      2000
     );
     const line = String(out).trim().split('\n').filter(Boolean).pop() || '{}';
     const data = JSON.parse(line);
+    console.log('[uia]', JSON.stringify(data)); // 诊断日志
     if (!data.ok || !data.selected) return null;
     return { selected: data.selected.trim(), context: (data.context || '').trim() };
   } catch (e) {

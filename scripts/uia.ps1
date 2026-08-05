@@ -1,42 +1,80 @@
 ﻿# TranEn UIA 取词脚本（不碰剪贴板）：
-# 通过 Windows UI Automation 读取当前焦点窗口的选中文本，
-# 并扩展获取选中文本所在的整段文字（语境）。
+# 1. 取前台窗口 → 遍历其控件树找支持 TextPattern 的元素
+# 2. 读取选中文本，并扩展获取所在段落（段落→行逐级回退）
 # 被 main/hotkey.js 的常驻 PowerShell 进程 dot-source 后调用。
+# 注意：PowerShell 5.1 需要 UTF-8 BOM，且空 catch 块不合法（用 $null = 1）
 
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
+if (-not ("TranenWin32" -as [type])) {
+    Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class TranenWin32 {
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+}
+"@
+}
+
 function Get-TranenSelection {
-    $result = [ordered]@{ selected = ''; context = ''; ok = $false; error = '' }
+    $result = [ordered]@{ selected = ''; context = ''; ok = $false; status = 'no-selection'; error = '' }
     try {
-        $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
-        $el = $focused
+        $hwnd = [TranenWin32]::GetForegroundWindow()
+        if ($hwnd -eq [IntPtr]::Zero) { $result.status = 'no-foreground-window'; return $result }
+        $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+        if ($null -eq $root) { $result.status = 'no-root-element'; return $result }
+
+        # BFS 遍历控件树（限 600 个元素）找支持 TextPattern 的元素
+        $queue = New-Object System.Collections.Queue
+        $queue.Enqueue($root)
+        $count = 0
         $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
-        while ($null -ne $el) {
+        while ($queue.Count -gt 0 -and $count -lt 600) {
+            $count++
+            $el = $queue.Dequeue()
             $tp = $null
             if ($el.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref]$tp)) {
-                $selection = $tp.GetSelection()
-                if ($null -ne $selection -and $selection.Count -gt 0) {
-                    $range = $selection[0]
-                    $txt = $range.GetText(-1)
-                    if ($null -ne $txt) { $result.selected = $txt.Trim() }
-                    # 扩展到选中文本所在的整段，作为语境
-                    try {
-                        $r2 = $range.Clone()
-                        $r2.ExpandToEnclosingUnit([System.Windows.Automation.TextUnit]::Paragraph)
-                        $para = $r2.GetText(-1)
-                        if ($null -ne $para) {
-                            if ($para.Length -gt 4000) { $para = $para.Substring(0, 4000) }
-                            $result.context = $para
+                try {
+                    $selection = $tp.GetSelection()
+                    if ($null -ne $selection -and $selection.Count -gt 0) {
+                        $range = $selection[0]
+                        $txt = $range.GetText(-1)
+                        if ($null -ne $txt) { $result.selected = $txt.Trim() }
+                        $result.ok = $true
+                        # 扩展选区到所在段落（失败则尝试行）
+                        foreach ($unit in @([System.Windows.Automation.Text.TextUnit]::Paragraph, [System.Windows.Automation.Text.TextUnit]::Line)) {
+                            try {
+                                $r2 = $range.Clone()
+                                $r2.ExpandToEnclosingUnit($unit)
+                                $para = $r2.GetText(-1)
+                                if ($null -ne $para) {
+                                    if ($para.Length -gt 4000) { $para = $para.Substring(0, 4000) }
+                                    if ($para.Length -gt $result.selected.Length) {
+                                        $result.context = $para
+                                        break
+                                    }
+                                }
+                            } catch { $null = 1 }
                         }
-                    } catch { $null = 1 }
-                    $result.ok = $true
-                    break
+                        $result.status = 'ok'
+                        return $result
+                    }
+                } catch {
+                    $result.status = 'selection-error'
+                    $result.error = $_.Exception.Message
                 }
             }
-            try { $el = $walker.GetParent($el) } catch { break }
+            try {
+                foreach ($child in $el.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+                    $queue.Enqueue($child)
+                }
+            } catch { $null = 1 }
         }
+        if ($count -ge 600) { $result.status = 'tree-too-large' }
     } catch {
+        $result.status = 'error'
         $result.error = $_.Exception.Message
     }
     return $result
