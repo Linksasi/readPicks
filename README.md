@@ -1,4 +1,4 @@
-# TranEn — 划词查词 · 语境记忆库（Windows）
+# ReadPicks 拾词 — 划词查词 · 语境理解 · 生词积累（Windows）
 
 阅读英文网页/文献时，选中生词按 `Alt+Q` 即可查询；自动积累「单词 + 当时语境句子」，SM-2 间隔重复复习，营造母语式学习环境。
 
@@ -46,7 +46,7 @@ npx electron-builder --win portable  # 免安装版
 
 ## 数据
 
-- 配置：`%APPDATA%/tran-en/config.json`
+- 配置：`%APPDATA%/tran-en/config.json`（目录名为早期命名，保持不变以兼容已有数据）
 - 生词本：`%APPDATA%/tran-en/words.db`
 - 词典：`%APPDATA%/tran-en/ecdict/`
 

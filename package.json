@@ -1,7 +1,7 @@
 {
-  "name": "tran-en",
+  "name": "readpicks",
   "version": "0.1.0",
-  "description": "划词查词 + 语境翻译 + 生词记忆库 (Windows)",
+  "description": "拾词 ReadPicks — 划词查词 + 语境理解 + 生词积累复习 (Windows)",
   "main": "main/index.js",
   "scripts": {
     "start": "electron .",
@@ -20,8 +20,8 @@
     "supermemo": "^2.0.23"
   },
   "build": {
-    "appId": "com.tranen.app",
-    "productName": "TranEn",
+    "appId": "com.readpicks.app",
+    "productName": "ReadPicks",
     "files": [
       "main/**",
       "renderer/**",

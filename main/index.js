@@ -148,7 +148,7 @@ function registerIpc() {
   ipcMain.handle('export-anki', async () => {
     const { canceled, filePath } = await dialog.showSaveDialog({
       title: '导出 Anki 生词本',
-      defaultPath: path.join(app.getPath('documents'), 'TranEn-生词本.txt'),
+      defaultPath: path.join(app.getPath('documents'), 'ReadPicks-生词本.txt'),
       filters: [{ name: 'Anki 文本', extensions: ['txt'] }],
     });
     if (canceled || !filePath) return { canceled: true };
@@ -246,7 +246,7 @@ function createTray() {
       { label: '退出', click: () => app.quit() },
     ]);
     tray.setContextMenu(menu);
-    tray.setToolTip('TranEn 划词查词');
+    tray.setToolTip('ReadPicks 拾词 — 划词查词');
   };
   rebuild();
   // 复习数量变化时刷新菜单（简单定时）
@@ -278,7 +278,7 @@ if (!gotLock) {
     if (!ok) console.warn('[hotkey] 注册失败，可能与其他应用冲突');
     hotkey.setWatchSync((t) => clipboardWatch.sync(t));
     clipboardWatch.start(handleQuery);
-    console.log('[tranen] ready. hotkey =', config.load().hotkey, '| dict installed =', ecdict.isInstalled());
+    console.log('[readpicks] ready. hotkey =', config.load().hotkey, '| dict installed =', ecdict.isInstalled());
   });
 
   app.on('window-all-closed', (e) => {

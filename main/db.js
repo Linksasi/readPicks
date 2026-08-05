@@ -134,9 +134,9 @@ function exportAnki(filePath) {
   const lines = [
     '#separator:tab',
     '#html:true',
-    '#tags:tranen',
+    '#tags:readpicks',
     '#columns:word,phonetic,translation',
-    '#deck:TranEn 生词本',
+    '#deck:ReadPicks 生词本',
   ];
   for (const r of rows) {
     lines.push([esc(r.word), esc(r.phonetic), esc(r.definition)].join('\t'));

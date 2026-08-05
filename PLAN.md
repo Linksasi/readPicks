@@ -1,4 +1,4 @@
-# TranEn — 划词查词 + 语境记忆库 (Windows)
+# ReadPicks 拾词 — 划词查词 + 语境记忆库 (Windows)
 
 > 定稿日期：方案 v1.0（经 GitHub 同类工具调研修订，用户确认开工）
 
