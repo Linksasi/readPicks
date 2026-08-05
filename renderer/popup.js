@@ -7,10 +7,18 @@ let currentWord = null;
 // ---------- 渲染 ----------
 
 api.onLookupResult((p) => {
+  if (p.loading) {
+    // 查询中：显示加载态
+    document.getElementById('word-view').classList.add('hidden');
+    document.getElementById('sentence-view').classList.add('hidden');
+    document.getElementById('loading').classList.remove('hidden');
+    return;
+  }
   document.getElementById('loading').classList.add('hidden');
   hideError();
   if (p.kind === 'word') renderWord(p);
   else renderSentence(p);
+  loadRecent();
 });
 
 function renderWord(p) {
@@ -118,6 +126,26 @@ function renderSentence(p) {
 }
 
 // ---------- 交互 ----------
+
+/** 最近查询的词（chips，点击再查） */
+async function loadRecent() {
+  try {
+    const words = await api.wordsRecent();
+    const box = document.getElementById('recent-chips');
+    const sec = document.getElementById('recent-section');
+    box.innerHTML = '';
+    if (!words.length) { sec.classList.add('hidden'); return; }
+    sec.classList.remove('hidden');
+    for (const w of words.slice(0, 10)) {
+      const c = document.createElement('button');
+      c.className = 'chip';
+      c.textContent = w.word;
+      c.title = `已查询 ${w.query_count} 次 · ${new Date(w.last_seen).toLocaleString('zh-CN')}`;
+      c.onclick = () => api.query(w.word);
+      box.appendChild(c);
+    }
+  } catch { /* 忽略 */ }
+}
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);

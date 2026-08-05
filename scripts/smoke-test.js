@@ -67,6 +67,10 @@ app.whenReady().then(async () => {
     console.log('PASS clean:', JSON.stringify(clean));
     if (hotkey.classify(clean) !== 'sentence') throw new Error('断行合并后应为句子');
     if (hotkey.classify('apple') !== 'word') throw new Error('apple 应为单词');
+    if (hotkey.classify(hotkey.cleanText('apple.')) !== 'word') throw new Error('带句号单词应为单词');
+    if (hotkey.classify(hotkey.cleanText('"apple"')) !== 'word') throw new Error('带引号单词应为单词');
+    if (hotkey.classify(hotkey.cleanText('apple,')) !== 'word') throw new Error('带逗号单词应为单词');
+    console.log('PASS clean/classify 标点容错');
 
     // 6. 在线翻译（MyMemory 免费接口）
     try {

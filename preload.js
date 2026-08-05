@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('tranen', {
   reviewAnswer: (word, grade) => ipcRenderer.invoke('review:answer', word, grade),
   reviewCount: () => ipcRenderer.invoke('review:count'),
   wordsList: () => ipcRenderer.invoke('words:list'),
+  wordsRecent: () => ipcRenderer.invoke('words:recent'),
   wordsRemove: (word) => ipcRenderer.invoke('words:remove', word),
   wordsStats: () => ipcRenderer.invoke('words:stats'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

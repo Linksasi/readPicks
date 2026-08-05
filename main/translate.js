@@ -3,6 +3,20 @@ const { load } = require('./config');
 
 const TIMEOUT = 15000;
 
+// 在线翻译结果缓存（10 分钟），避免反复请求同一文本
+const cache = new Map();
+const CACHE_TTL = 10 * 60 * 1000;
+function withCache(fn) {
+  return async function (...args) {
+    const key = `${fn.name}:${JSON.stringify(args)}`;
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.ts < CACHE_TTL) return hit.value;
+    const value = await fn.apply(this, args);
+    cache.set(key, { value, ts: Date.now() });
+    return value;
+  };
+}
+
 async function fetchJson(url, options = {}, timeout = TIMEOUT) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
@@ -140,4 +154,7 @@ async function llm(text, p, wantJson = false) {
   return wantJson ? content : { translation: content };
 }
 
-module.exports = { translateSentence, lookupInContext };
+module.exports = {
+  translateSentence: withCache(translateSentence),
+  lookupInContext: withCache(lookupInContext),
+};

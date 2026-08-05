@@ -122,6 +122,11 @@ function allWords(limit = 5000) {
   return db.prepare('SELECT * FROM words ORDER BY last_seen DESC LIMIT ?').all(limit);
 }
 
+/** 最近查询过的词（悬浮窗快捷入口） */
+function recentWords(limit = 12) {
+  return db.prepare('SELECT word, query_count, last_seen FROM words ORDER BY last_seen DESC LIMIT ?').all(limit);
+}
+
 /** 导出 Anki 可导入的 UTF-8 制表符 .txt */
 function exportAnki(filePath) {
   const rows = db.prepare('SELECT word, phonetic, definition FROM words ORDER BY first_seen DESC').all();
@@ -144,4 +149,4 @@ function stats() {
   return db.prepare('SELECT COUNT(*) AS total FROM words').get().total;
 }
 
-module.exports = { init, recordLookup, getWord, getHistory, setNote, removeWord, reviewWord, dueWords, dueCount, allWords, exportAnki, stats };
+module.exports = { init, recordLookup, getWord, getHistory, setNote, removeWord, reviewWord, dueWords, dueCount, allWords, recentWords, exportAnki, stats };

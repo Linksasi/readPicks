@@ -21,6 +21,8 @@ async function handleQuery(raw) {
   if (!text) return null;
   context.push(text);
   const kind = hotkey.classify(text);
+  // 立即弹出「查询中」窗口，查询在后台进行（感知零延迟）
+  windowMgr.showPopup({ kind, raw: text, loading: true });
   const payload = kind === 'word' ? await lookupWord(text) : await translateText(text);
   windowMgr.showPopup(payload);
   return payload;
@@ -215,6 +217,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('words:list', () => db.allWords(2000));
+  ipcMain.handle('words:recent', () => db.recentWords(12));
   ipcMain.handle('words:remove', (_e, word) => db.removeWord(word));
   ipcMain.handle('words:stats', () => ({ total: db.stats(), due: db.dueCount() }));
 }
@@ -264,6 +267,7 @@ if (!gotLock) {
     ecdict.init();
     registerIpc();
     createTray();
+    windowMgr.createPopup(); // 预创建悬浮窗，热键首次触发零等待
     const ok = hotkey.register(handleQuery);
     if (!ok) console.warn('[hotkey] 注册失败，可能与其他应用冲突');
     hotkey.setWatchSync((t) => clipboardWatch.sync(t));

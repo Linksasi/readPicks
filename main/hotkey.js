@@ -56,13 +56,23 @@ async function grabSelection() {
     };
     clipboard.writeText(''); // 清空，确保后续读到的是新复制内容
     await sendCopy();
-    await sleep(200);
-    let picked = clipboard.readText();
-    if (!picked || picked === snap.text) {
+    // 轮询剪贴板直到读到新内容（通常 50-150ms），上限 800ms
+    let picked = '';
+    const deadline = Date.now() + 800;
+    while (Date.now() < deadline) {
+      await sleep(40);
+      const t = clipboard.readText();
+      if (t && t !== snap.text) { picked = t; break; }
+    }
+    if (!picked) {
       // 应用响应慢，重试一次
       await sendCopy();
-      await sleep(250);
-      picked = clipboard.readText();
+      const deadline2 = Date.now() + 800;
+      while (Date.now() < deadline2) {
+        await sleep(40);
+        const t = clipboard.readText();
+        if (t && t !== snap.text) { picked = t; break; }
+      }
     }
     // 恢复快照（文本/HTML/图片）
     if (snap.image && !snap.image.isEmpty()) {
@@ -101,6 +111,8 @@ function cleanText(raw) {
   if (!t) return '';
   // 去首尾成对引号/括号
   t = t.replace(/^[“"'‘(\[【《]+|[”"'’)\]】》]+$/g, '').trim();
+  // 去尾部句号/逗号等（选中单词时常带上："apple."、"apple,"）
+  t = t.replace(/[.,;:!?，。！？；：、…]+$/, '').trim();
   const lines = t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (lines.length > 1) {
     // PDF 断行：行尾连字符-下一行小写开头 → 直接拼接；否则空格拼接

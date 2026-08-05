@@ -14,7 +14,9 @@ app.whenReady().then(async () => {
     popup.webContents.on('console-message', (_e, level, msg) => {
       console.log('[renderer]', level, msg);
     });
-    await new Promise((res) => popup.webContents.once('did-finish-load', res));
+    if (popup.webContents.isLoading()) {
+      await new Promise((res) => popup.webContents.once('did-finish-load', res));
+    }
     await sleep(300);
 
     const check = (label, cond, detail) => {
@@ -62,6 +64,15 @@ app.whenReady().then(async () => {
     // 4. 复习接口
     const due = await popup.webContents.executeJavaScript(`window.tranen.reviewCount()`, true);
     console.log('INFO due count =', due);
+
+    // 4.5 最近查询入口
+    const recent = await popup.webContents.executeJavaScript(`window.tranen.wordsRecent()`, true);
+    check('recent words', Array.isArray(recent) && recent.length >= 1, JSON.stringify(recent.map((w) => w.word).slice(0, 3)));
+    const recentDom = await popup.webContents.executeJavaScript(`({
+      shown: !document.getElementById('recent-section').classList.contains('hidden'),
+      chips: document.getElementById('recent-chips').children.length
+    })`, true);
+    check('recent section rendered', recentDom.shown && recentDom.chips > 0, JSON.stringify(recentDom));
 
     // 5. 设置窗口能打开
     const settings = windowMgr.createSettings();
