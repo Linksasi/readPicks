@@ -73,6 +73,7 @@ async function lookupWord(word) {
       payload.sentenceTranslation = ctx.sentence_translation;
       payload.wordInSentence = ctx.word_in_sentence;
       payload.explain = ctx.explain;
+      payload.usage = ctx.usage;
       payload.words = ctx.words || [];
       if (ctx.word_in_sentence && !definition) definition = ctx.word_in_sentence;
       if (ctx.sentence_translation) payload.source = ctx.source || 'translate';

@@ -55,7 +55,7 @@ async function lookupInContext(word, sentence, providerName) {
   if (name !== 'llm' || !p?.apiKey) {
     // 非 LLM：只做整句翻译
     const { translation } = await translateSentence(sentence, name);
-    return { sentence_translation: translation, word_in_sentence: null, explain: null, words: [], source: 'translate' };
+    return { sentence_translation: translation, word_in_sentence: null, explain: null, usage: null, words: [], source: 'translate' };
   }
   const res = await llm(word + '\n' + sentence, p, true);
   let data = {};
@@ -69,6 +69,7 @@ async function lookupInContext(word, sentence, providerName) {
     sentence_translation: data.sentence_translation || null,
     word_in_sentence: data.translation || data.word_in_sentence || null,
     explain: data.explain || null,
+    usage: data.usage || null,
     words: Array.isArray(data.words) ? data.words : [],
     source: 'llm',
   };

@@ -32,6 +32,7 @@ const DEFAULTS = {
       systemPrompt:
         '你是英语学习助手。用户给出一个英语单词和它所在的句子，请返回严格 JSON：' +
         '{"phonetic":"","translation":"该单词在本句中的含义，中文","explain":"一句话解释为什么在这里这么译",' +
+        '"usage":"该词在此句中的用法说明，中文，包含词性、搭配、语法角色，一到两句话",' +
         '"sentence_translation":"整句中文翻译","words":[{"word":"句中其他值得学习的单词","meaning":"中文含义"}]}',
     },
   },

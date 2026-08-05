@@ -78,6 +78,13 @@ function renderWord(p) {
       ex.textContent = '💡 ' + p.explain;
       ex.classList.remove('hidden');
     } else ex.classList.add('hidden');
+    const us = document.getElementById('usage');
+    if (p.usage) {
+      us.textContent = '📎 用法：' + p.usage;
+      us.classList.remove('hidden');
+    } else us.classList.add('hidden');
+    // 非 LLM 且无解释时提示配置 LLM
+    document.getElementById('llm-hint').classList.toggle('hidden', !!(p.explain || p.usage));
     const ow = document.getElementById('other-words');
     ow.innerHTML = '';
     if (p.words && p.words.length) {

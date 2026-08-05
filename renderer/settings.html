@@ -111,7 +111,7 @@ textarea { resize: vertical; }
       <div class="row"><label>API Key</label><input type="password" id="llm-apiKey"></div>
       <div class="row"><label>模型</label><input type="text" id="llm-model" placeholder="deepseek-chat"></div>
       <div class="row"><label>系统提示词</label><textarea id="llm-systemPrompt" rows="4"></textarea></div>
-      <p class="hint">LLM 模式查词时会额外解释「为什么在句中这样译」并提取句中其他生词。兼容 OpenAI/DeepSeek/通义/Claude(需转 OpenAI 格式网关) 等。</p>
+      <p class="hint">LLM 模式查词时会额外给出：本句译法、为什么这样译、词性/搭配/语法用法、句中其他生词。兼容 OpenAI/DeepSeek/通义/Claude(需转 OpenAI 格式网关) 等。</p>
     </div>
     <div class="row"><button class="btn" id="save-translate">保存翻译源</button><span class="msg" id="translate-msg"></span></div>
   </div>

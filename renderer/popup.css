@@ -96,6 +96,7 @@ header {
 .context-trans { color: var(--fg); }
 .word-in-sentence { font-weight: 600; color: var(--accent); margin-top: 6px; }
 .explain { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.usage { color: var(--fg); font-size: 13px; margin-top: 4px; }
 .error { color: #dc2626; font-size: 12px; margin-top: 8px; }
 
 .other-words { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
