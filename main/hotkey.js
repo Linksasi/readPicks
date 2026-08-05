@@ -161,8 +161,8 @@ async function grabSelection() {
   // 1) UIA 直读
   const uia = await grabViaUia();
   if (uia) {
-    // 选中文本所在段落 → 语境缓存（查词时自动匹配出句子）
-    if (uia.context && uia.context !== uia.selected) context.push(uia.context);
+    // 选中文本所在段落 → 语境缓存（必须是含空格的正常文本，过滤 URL 等）
+    if (uia.context && uia.context !== uia.selected && /\s/.test(uia.context)) context.push(uia.context);
     return uia.selected;
   }
 

@@ -26,12 +26,11 @@ function Get-TranenSelection {
         $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
         if ($null -eq $root) { $result.status = 'no-root-element'; return $result }
 
-        # BFS 遍历控件树（限 600 个元素）找支持 TextPattern 的元素
+        # BFS 遍历控件树（限 1500 个元素）找「有真实选区」的 TextPattern 元素
         $queue = New-Object System.Collections.Queue
         $queue.Enqueue($root)
         $count = 0
-        $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
-        while ($queue.Count -gt 0 -and $count -lt 600) {
+        while ($queue.Count -gt 0 -and $count -lt 1500) {
             $count++
             $el = $queue.Dequeue()
             $tp = $null
@@ -41,25 +40,28 @@ function Get-TranenSelection {
                     if ($null -ne $selection -and $selection.Count -gt 0) {
                         $range = $selection[0]
                         $txt = $range.GetText(-1)
-                        if ($null -ne $txt) { $result.selected = $txt.Trim() }
-                        $result.ok = $true
-                        # 扩展选区到所在段落（失败则尝试行）
-                        foreach ($unit in @([System.Windows.Automation.Text.TextUnit]::Paragraph, [System.Windows.Automation.Text.TextUnit]::Line)) {
-                            try {
-                                $r2 = $range.Clone()
-                                $r2.ExpandToEnclosingUnit($unit)
-                                $para = $r2.GetText(-1)
-                                if ($null -ne $para) {
-                                    if ($para.Length -gt 4000) { $para = $para.Substring(0, 4000) }
-                                    if ($para.Length -gt $result.selected.Length) {
-                                        $result.context = $para
-                                        break
+                        # 只认有真实选中文本的控件（地址栏等空选区直接跳过）
+                        if ($null -ne $txt -and $txt.Trim().Length -gt 0) {
+                            $result.selected = $txt.Trim()
+                            $result.ok = $true
+                            # 扩展选区到所在段落（失败则尝试行）
+                            foreach ($unit in @([System.Windows.Automation.Text.TextUnit]::Paragraph, [System.Windows.Automation.Text.TextUnit]::Line)) {
+                                try {
+                                    $r2 = $range.Clone()
+                                    $r2.ExpandToEnclosingUnit($unit)
+                                    $para = $r2.GetText(-1)
+                                    if ($null -ne $para) {
+                                        if ($para.Length -gt 4000) { $para = $para.Substring(0, 4000) }
+                                        if ($para.Length -gt $result.selected.Length) {
+                                            $result.context = $para
+                                            break
+                                        }
                                     }
-                                }
-                            } catch { $null = 1 }
+                                } catch { $null = 1 }
+                            }
+                            $result.status = 'ok'
+                            return $result
                         }
-                        $result.status = 'ok'
-                        return $result
                     }
                 } catch {
                     $result.status = 'selection-error'
@@ -72,7 +74,7 @@ function Get-TranenSelection {
                 }
             } catch { $null = 1 }
         }
-        if ($count -ge 600) { $result.status = 'tree-too-large' }
+        if ($count -ge 1500) { $result.status = 'tree-too-large' }
     } catch {
         $result.status = 'error'
         $result.error = $_.Exception.Message
