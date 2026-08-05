@@ -238,10 +238,13 @@ function cleanText(raw) {
   return t.trim();
 }
 
-/** 判断是单词还是句子 */
+/** 判断是单词/短语还是句子（短语走单词卡流程，可查词典+语境） */
 function classify(text) {
-  const isWord = !/\s/.test(text) && text.length <= 50 && /^[A-Za-z][A-Za-z'-]*$/.test(text);
-  return isWord ? 'word' : 'sentence';
+  const words = text.split(/\s+/).filter(Boolean);
+  const allAlpha = (w) => /^[A-Za-z][A-Za-z'-]*$/.test(w);
+  if (words.length === 1 && allAlpha(words[0]) && text.length <= 50) return 'word';
+  if (words.length <= 5 && words.every(allAlpha)) return 'word'; // 短语（如 "rich seafood traditions"）
+  return 'sentence';
 }
 
 module.exports = { register, unregister, grabSelection, cleanText, classify, setWatchSync, isBusy, grabViaUia, sendCommand };

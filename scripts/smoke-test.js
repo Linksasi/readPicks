@@ -77,6 +77,8 @@ app.whenReady().then(async () => {
     if (hotkey.classify(hotkey.cleanText('apple.')) !== 'word') throw new Error('带句号单词应为单词');
     if (hotkey.classify(hotkey.cleanText('"apple"')) !== 'word') throw new Error('带引号单词应为单词');
     if (hotkey.classify(hotkey.cleanText('apple,')) !== 'word') throw new Error('带逗号单词应为单词');
+    if (hotkey.classify(hotkey.cleanText('rich seafood traditions')) !== 'word') throw new Error('短语应为单词流程');
+    if (hotkey.classify(hotkey.cleanText('a b c d e f g')) !== 'sentence') throw new Error('长句应判为句子');
     console.log('PASS clean/classify 标点容错');
 
     // 6. 在线翻译（MyMemory 免费接口）
