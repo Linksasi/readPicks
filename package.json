@@ -26,6 +26,7 @@
       "main/**",
       "renderer/**",
       "assets/**",
+      "scripts/download-dict.js",
       "preload.js",
       "package.json"
     ],
