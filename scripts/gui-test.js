@@ -92,12 +92,19 @@ app.whenReady().then(async () => {
     })`, true);
     check('recent section rendered', recentDom.shown && recentDom.chips > 0, JSON.stringify(recentDom));
 
-    // 5. 设置窗口能打开
+    // 5. 设置窗口能打开 + tab 切换正常
     const settings = windowMgr.createSettings();
     await new Promise((res) => settings.webContents.once('did-finish-load', res));
-    await sleep(300);
+    await sleep(400);
     const sOk = await settings.webContents.executeJavaScript(`!!document.getElementById('save-general')`, true);
     check('settings window', sOk);
+    for (const tab of ['words', 'dict', 'translate', 'general']) {
+      const t = await settings.webContents.executeJavaScript(`(() => {
+        document.querySelector('[data-tab="${tab}"]').click();
+        return document.getElementById('tab-${tab}').classList.contains('active');
+      })()`, true);
+      check(`settings tab ${tab}`, t === true);
+    }
 
     console.log('ALL GUI TESTS DONE');
   } catch (e) {

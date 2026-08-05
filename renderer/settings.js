@@ -7,6 +7,7 @@ document.querySelectorAll('.tabs button').forEach((btn) => {
     document.querySelectorAll('.pane').forEach((p) => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'words') setTimeout(refreshWords, 50); // 进入生词本时刷新列表
   };
 });
 
@@ -184,7 +185,6 @@ async function refreshWords() {
   }
 }
 
-// 切到生词本 tab 时刷新
-document.querySelector('[data-tab="words"]').onclick = () => setTimeout(refreshWords, 50);
+// 生词本刷新入口已合并进 tab 点击处理
 
 loadConfig().then(() => { refreshDict(); refreshWords(); });
