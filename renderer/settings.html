@@ -4,136 +4,110 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'">
 <title>TranEn 设置</title>
-<style>
-:root {
-  --bg: #ffffff; --fg: #1f2937; --muted: #6b7280;
-  --accent: #2563eb; --border: #e5e7eb; --chip-bg: #eff6ff;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1f2937; --fg: #e5e7eb; --muted: #9ca3af;
-    --accent: #60a5fa; --border: #374151; --chip-bg: #1e3a5f;
-  }
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; font-size: 14px; padding: 20px; }
-h1 { font-size: 18px; margin-bottom: 16px; }
-.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-.tabs button {
-  border: none; background: none; color: var(--muted); padding: 8px 14px;
-  cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent;
-}
-.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-.pane { display: none; }
-.pane.active { display: block; }
-.row { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.row label { flex: 0 0 130px; color: var(--muted); }
-input[type=text], input[type=password], select, textarea {
-  flex: 1; min-width: 200px; padding: 6px 10px; border: 1px solid var(--border);
-  border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 13px; font-family: inherit;
-}
-textarea { resize: vertical; }
-.hint { color: var(--muted); font-size: 12px; margin: -6px 0 12px 140px; }
-.btn {
-  background: var(--accent); color: #fff; border: none; border-radius: 8px;
-  padding: 8px 20px; cursor: pointer; font-size: 14px;
-}
-.btn.ghost { background: var(--chip-bg); color: var(--accent); }
-.progress { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; margin: 8px 0; }
-.progress div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
-.msg { color: var(--muted); font-size: 12px; margin-top: 4px; }
-.msg.ok { color: #16a34a; }
-.msg.err { color: #dc2626; }
-.word-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 10px; border-bottom: 1px solid var(--border);
-}
-.word-row .w { font-weight: 600; }
-.word-row .info { color: var(--muted); font-size: 12px; }
-.word-row button { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; }
-.list { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
-.empty { color: var(--muted); text-align: center; padding: 20px; }
-</style>
+<link rel="stylesheet" href="settings.css">
 </head>
 <body>
-  <h1>⚙️ TranEn 设置</h1>
+  <div class="app-header">
+    <div class="logo">📖</div>
+    <div>
+      <h1>TranEn 设置</h1>
+      <div class="sub">划词查词 · 语境记忆 · 间隔复习</div>
+    </div>
+  </div>
+
   <div class="tabs">
-    <button data-tab="general" class="active">常规</button>
-    <button data-tab="translate">翻译源</button>
-    <button data-tab="dict">词典</button>
-    <button data-tab="words">生词本</button>
+    <button data-tab="general" class="active">⚙️ 常规</button>
+    <button data-tab="translate">🌐 翻译源</button>
+    <button data-tab="dict">📚 词典</button>
+    <button data-tab="words">🗂️ 生词本</button>
   </div>
 
   <!-- 常规 -->
   <div id="tab-general" class="pane active">
-    <div class="row"><label>全局热键</label><input type="text" id="hotkey" placeholder="Alt+Q"></div>
-    <div class="row"><label>复制即弹</label><select id="autoPopup"><option value="false">关闭（仅热键触发）</option><option value="true">开启（Ctrl+C 即弹窗）</option></select></div>
-    <div class="row"><label>默认翻译源</label><select id="provider">
-      <option value="mymemory">MyMemory（免费，无需配置）</option>
-      <option value="youdao">有道智云</option>
-      <option value="baidu">百度翻译</option>
-      <option value="deepl">DeepL</option>
-      <option value="llm">LLM（OpenAI 兼容）</option>
-      <option value="none">仅本地词典</option>
-    </select></div>
-    <div class="row"><button class="btn" id="save-general">保存</button><span class="msg" id="general-msg"></span></div>
+    <div class="card">
+      <h3>基本设置</h3>
+      <div class="row"><label>全局热键</label><input type="text" id="hotkey" placeholder="Alt+Q" spellcheck="false"></div>
+      <div class="switch-row">
+        <label>复制即弹</label>
+        <label class="switch"><input type="checkbox" id="autoPopup"><span class="slider"></span></label>
+        <span class="switch-label" id="autoPopup-label">关闭（仅热键触发）</span>
+      </div>
+      <div class="row"><label>默认翻译源</label><select id="provider">
+        <option value="mymemory">MyMemory（免费，无需配置）</option>
+        <option value="youdao">有道智云</option>
+        <option value="baidu">百度翻译</option>
+        <option value="deepl">DeepL</option>
+        <option value="llm">LLM（OpenAI 兼容）</option>
+        <option value="none">仅本地词典</option>
+      </select></div>
+      <div class="row"><button class="btn" id="save-general">保存</button><span class="msg" id="general-msg"></span></div>
+    </div>
   </div>
 
   <!-- 翻译源 -->
   <div id="tab-translate" class="pane">
-    <div class="row"><label>源类型</label><select id="p-type">
-      <option value="mymemory">MyMemory（免费）</option>
-      <option value="youdao">有道智云</option>
-      <option value="baidu">百度翻译</option>
-      <option value="deepl">DeepL</option>
-      <option value="llm">LLM（OpenAI 兼容）</option>
-    </select></div>
-    <div id="cfg-mymemory" class="pcfg">
-      <p class="hint" style="margin-left:0">免费接口，无需配置。限流约 5000 词/日，适合日常。</p>
+    <div class="card">
+      <h3>翻译与语境解释来源</h3>
+      <div class="row"><label>源类型</label><select id="p-type">
+        <option value="mymemory">MyMemory（免费）</option>
+        <option value="youdao">有道智云</option>
+        <option value="baidu">百度翻译</option>
+        <option value="deepl">DeepL</option>
+        <option value="llm">LLM（OpenAI 兼容）</option>
+      </select></div>
+      <div id="cfg-mymemory" class="pcfg">
+        <p class="hint" style="margin-left:0">免费接口，无需配置。限流约 5000 词/日，适合日常。</p>
+      </div>
+      <div id="cfg-youdao" class="pcfg hidden">
+        <div class="row"><label>appKey</label><input type="text" id="youdao-appKey" placeholder="有道智云应用的 appKey" spellcheck="false"></div>
+        <div class="row"><label>appSecret</label><input type="password" id="youdao-appSecret"></div>
+        <p class="hint">申请：ai.youdao.com 控制台创建应用（文本翻译服务）</p>
+      </div>
+      <div id="cfg-baidu" class="pcfg hidden">
+        <div class="row"><label>appId</label><input type="text" id="baidu-appId" spellcheck="false"></div>
+        <div class="row"><label>密钥</label><input type="password" id="baidu-appKey"></div>
+        <p class="hint">申请：fanyi-api.baidu.com 开放平台</p>
+      </div>
+      <div id="cfg-deepl" class="pcfg hidden">
+        <div class="row"><label>apiKey</label><input type="password" id="deepl-apiKey"></div>
+        <div class="row"><label>接口</label><select id="deepl-free"><option value="true">免费版 api-free</option><option value="false">付费版 api.deepl</option></select></div>
+        <p class="hint">申请：deepl.com/zh/pro-api</p>
+      </div>
+      <div id="cfg-llm" class="pcfg hidden">
+        <div class="row"><label>Base URL</label><input type="text" id="llm-baseUrl" placeholder="https://api.deepseek.com/v1" spellcheck="false"></div>
+        <div class="row"><label>API Key</label><input type="password" id="llm-apiKey"></div>
+        <div class="row"><label>模型</label><input type="text" id="llm-model" placeholder="deepseek-chat" spellcheck="false"></div>
+        <div class="row"><label>系统提示词</label><textarea id="llm-systemPrompt" rows="4"></textarea></div>
+        <p class="hint">LLM 模式查词时会额外给出：本句译法、为什么这样译、词性/搭配/语法用法、句中其他生词。兼容 OpenAI/DeepSeek/通义/Claude(需转 OpenAI 格式网关) 等。</p>
+      </div>
+      <div class="row"><button class="btn" id="save-translate">保存翻译源</button><span class="msg" id="translate-msg"></span></div>
     </div>
-    <div id="cfg-youdao" class="pcfg hidden">
-      <div class="row"><label>appKey</label><input type="text" id="youdao-appKey" placeholder="有道智云应用的 appKey"></div>
-      <div class="row"><label>appSecret</label><input type="password" id="youdao-appSecret"></div>
-      <p class="hint">申请：ai.youdao.com 控制台创建应用（文本翻译服务）</p>
-    </div>
-    <div id="cfg-baidu" class="pcfg hidden">
-      <div class="row"><label>appId</label><input type="text" id="baidu-appId"></div>
-      <div class="row"><label>密钥</label><input type="password" id="baidu-appKey"></div>
-      <p class="hint">申请：fanyi-api.baidu.com 开放平台</p>
-    </div>
-    <div id="cfg-deepl" class="pcfg hidden">
-      <div class="row"><label>apiKey</label><input type="password" id="deepl-apiKey"></div>
-      <div class="row"><label>接口</label><select id="deepl-free"><option value="true">免费版 api-free</option><option value="false">付费版 api.deepl</option></select></div>
-      <p class="hint">申请：deepl.com/zh/pro-api</p>
-    </div>
-    <div id="cfg-llm" class="pcfg hidden">
-      <div class="row"><label>Base URL</label><input type="text" id="llm-baseUrl" placeholder="https://api.deepseek.com/v1"></div>
-      <div class="row"><label>API Key</label><input type="password" id="llm-apiKey"></div>
-      <div class="row"><label>模型</label><input type="text" id="llm-model" placeholder="deepseek-chat"></div>
-      <div class="row"><label>系统提示词</label><textarea id="llm-systemPrompt" rows="4"></textarea></div>
-      <p class="hint">LLM 模式查词时会额外给出：本句译法、为什么这样译、词性/搭配/语法用法、句中其他生词。兼容 OpenAI/DeepSeek/通义/Claude(需转 OpenAI 格式网关) 等。</p>
-    </div>
-    <div class="row"><button class="btn" id="save-translate">保存翻译源</button><span class="msg" id="translate-msg"></span></div>
   </div>
 
   <!-- 词典 -->
   <div id="tab-dict" class="pane">
-    <div id="dict-status" class="msg"></div>
-    <div class="progress hidden" id="dict-progress"><div></div></div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn" id="dict-download">下载 ECDICT 离线词典</button>
-      <button class="btn ghost" id="dict-install-file">从本地文件安装…</button>
-      <button class="btn ghost" id="export-anki">导出 Anki 生词本</button>
+    <div class="card">
+      <h3>ECDICT 离线词典</h3>
+      <div id="dict-status"></div>
+      <div class="progress hidden" id="dict-progress"><div></div></div>
+      <div class="btn-row">
+        <button class="btn" id="dict-download">下载 ECDICT 离线词典</button>
+        <button class="btn ghost" id="dict-install-file">从本地文件安装…</button>
+        <button class="btn ghost" id="export-anki">导出 Anki 生词本</button>
+      </div>
+      <p class="hint" style="margin-left:0;margin-top:10px">ECDICT 官方词典约 216MB（含 76 万词条、音标、词频、考试标签），下载后离线秒查。跳过也能用在线翻译。<br>
+      国内网络下载慢时：用浏览器打开 <a href="#" id="dl-link">GitHub 发布页</a> 下载 <b>ecdict-sqlite-28.zip</b>，再点「从本地文件安装…」。</p>
+      <p class="msg" id="dict-msg"></p>
     </div>
-    <p class="hint" style="margin-left:0">ECDICT 官方词典约 216MB（含 76 万词条、音标、词频、考试标签），下载后离线秒查。跳过也能用在线翻译。<br>
-    国内网络下载慢时：用浏览器打开 <a href="#" id="dl-link">GitHub 发布页</a> 下载 <b>ecdict-sqlite-28.zip</b>，再点「从本地文件安装…」。</p>
-    <p class="msg" id="dict-msg"></p>
   </div>
 
   <!-- 生词本 -->
   <div id="tab-words" class="pane">
-    <p class="msg" id="words-stats"></p>
-    <div class="list" id="words-list"></div>
+    <div class="card">
+      <h3>生词本管理</h3>
+      <div class="stats-line" id="words-stats"></div>
+      <div class="list" id="words-list"></div>
+    </div>
   </div>
 
 <script src="settings.js"></script>

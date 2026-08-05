@@ -16,7 +16,10 @@ let cfg = null;
 async function loadConfig() {
   cfg = await api.configGet();
   document.getElementById('hotkey').value = cfg.hotkey;
-  document.getElementById('autoPopup').value = String(cfg.autoPopup);
+  const ap = document.getElementById('autoPopup');
+  ap.checked = !!cfg.autoPopup;
+  updateAutoPopupLabel(cfg.autoPopup);
+  ap.onchange = () => updateAutoPopupLabel(ap.checked);
   document.getElementById('provider').value = cfg.provider;
 
   document.getElementById('youdao-appKey').value = cfg.providers.youdao.appKey;
@@ -40,12 +43,16 @@ function msg(el, text, cls = '') {
   el.className = 'msg ' + cls;
 }
 
+function updateAutoPopupLabel(on) {
+  document.getElementById('autoPopup-label').textContent = on ? '开启（Ctrl+C 即弹窗）' : '关闭（仅热键触发）';
+}
+
 document.getElementById('save-general').onclick = async () => {
   const hotkey = document.getElementById('hotkey').value.trim();
   if (!hotkey) { msg(document.getElementById('general-msg'), '热键不能为空', 'err'); return; }
   const c = await api.configSet({
     hotkey,
-    autoPopup: document.getElementById('autoPopup').value === 'true',
+    autoPopup: document.getElementById('autoPopup').checked,
     provider: document.getElementById('provider').value,
   });
   cfg = c;
@@ -91,10 +98,10 @@ async function refreshDict() {
   const st = await api.dictStatus();
   const box = document.getElementById('dict-status');
   if (st.installed) {
-    msg(box, `✅ 本地词典已安装（${st.sizeMB} MB）· 76 万词条离线可用`, 'ok');
+    box.innerHTML = `<div class="status-box ok">✅ 本地词典已安装（${st.sizeMB} MB）· 76 万词条离线可用</div>`;
     document.getElementById('dict-download').textContent = '重新下载词典';
   } else {
-    msg(box, '⚠️ 本地词典未安装 — 单词查询将依赖在线翻译', 'err');
+    box.innerHTML = '<div class="status-box warn">⚠️ 本地词典未安装 — 单词查询将依赖在线翻译</div>';
   }
 }
 document.getElementById('dict-download').onclick = async () => {
@@ -145,25 +152,30 @@ document.getElementById('export-anki').onclick = async () => {
 // ---------- 生词本 ----------
 async function refreshWords() {
   const stats = await api.wordsStats();
-  document.getElementById('words-stats').textContent = `共 ${stats.total} 个生词 · ${stats.due} 个待复习`;
+  document.getElementById('words-stats').innerHTML =
+    `<span class="stat-chip">共 ${stats.total} 个生词</span><span class="stat-chip">${stats.due} 个待复习</span>`;
   const list = document.getElementById('words-list');
   list.innerHTML = '';
   const words = await api.wordsList();
   if (!words.length) {
-    list.appendChild(Object.assign(document.createElement('div'), { className: 'empty', textContent: '还没有生词 — 阅读时选中单词按热键即可积累' }));
+    list.appendChild(Object.assign(document.createElement('div'), { className: 'empty', textContent: '📭 还没有生词 — 阅读时选中单词按热键即可积累' }));
     return;
   }
   for (const w of words) {
     const row = document.createElement('div');
     row.className = 'word-row';
     const left = document.createElement('div');
+    left.className = 'left';
     const name = document.createElement('span');
     name.className = 'w';
     name.textContent = w.word;
+    const cnt = document.createElement('span');
+    cnt.className = 'count';
+    cnt.textContent = `${w.query_count} 次`;
     const info = document.createElement('span');
     info.className = 'info';
-    info.textContent = `  · 查询 ${w.query_count} 次 · ${new Date(w.last_seen).toLocaleDateString('zh-CN')}`;
-    left.appendChild(name); left.appendChild(info);
+    info.textContent = new Date(w.last_seen).toLocaleDateString('zh-CN');
+    left.appendChild(name); left.appendChild(cnt); left.appendChild(info);
     const del = document.createElement('button');
     del.textContent = '删除';
     del.onclick = async () => { await api.wordsRemove(w.word); refreshWords(); };
