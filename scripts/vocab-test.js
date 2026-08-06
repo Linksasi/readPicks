@@ -103,6 +103,7 @@ app.whenReady().then(async () => {
 
     // 11. simpleDefinition 未配置 LLM 时返回 null（不发起网络请求）
     const translate = require('../main/translate');
+    config.update({ providers: { llm: { apiKey: '' } } }); // 显式清空，独立于用户真实配置
     const sd = await translate.simpleDefinition('keyboard');
     check('simpleDefinition 无 apiKey → null', sd === null, JSON.stringify(sd));
   } catch (e) {
