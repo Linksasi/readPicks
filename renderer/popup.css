@@ -113,6 +113,19 @@ header {
 }
 .hard-word:hover { text-decoration: underline solid; }
 
+/* 英英释义义项列表 */
+.en-sense { display: flex; gap: 8px; padding: 2px 0; align-items: baseline; }
+.en-sense .pos {
+  flex: 0 0 56px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--chip-bg);
+  border-radius: 4px;
+  padding: 0 4px;
+  text-align: center;
+}
+
 /* 难词就地浮层 */
 .word-tip {
   position: fixed;

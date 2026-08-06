@@ -74,18 +74,18 @@ function renderWord(p) {
     meta.textContent = p.dictInstalled ? '' : '💡 设置中可一键安装离线词典';
   }
 
-  // 英英释义（测过词汇量后出现）：LLM 简单释义优先，否则 WordNet 释义 + 难词标注
+  // 英英释义（测过词汇量后出现）：LLM 简单释义优先，否则 WordNet 义项列表 + 难词标注
   const enSec = document.getElementById('en-def-section');
   const enDef = document.getElementById('en-def');
   if (p.simpleDef) {
     enSec.classList.remove('hidden');
-    enDef.innerHTML = escapeHtml(p.simpleDef);
-  } else if (p.enDefinition && p.enDefinition.text) {
+    enDef.replaceChildren(document.createTextNode(p.simpleDef));
+  } else if (p.enDefinition && p.enDefinition.senses && p.enDefinition.senses.length) {
     enSec.classList.remove('hidden');
-    enDef.replaceChildren(renderEnDef(p.enDefinition.text, p.enDefinition.hard || [], p.enDefinition.hints || []));
+    enDef.replaceChildren(renderSenses(p.enDefinition.senses, p.enDefinition.hard || [], p.enDefinition.hints || []));
   } else {
     enSec.classList.add('hidden');
-    enDef.innerHTML = '';
+    enDef.replaceChildren();
   }
 
   // 语境区
@@ -200,26 +200,45 @@ function highlightWord(text, word) {
   return escapeHtml(text).replace(re, '<mark>$1</mark>');
 }
 
-/** 渲染英英释义：超出用户词汇水平的词 → 可点击的虚线高亮（点击就地显示简单解释）。
+/** WordNet 词性短码 → 中文标签 */
+const POS_LABEL = {
+  n: '名词', v: '动词', a: '形容词', s: '形容词', r: '副词',
+  vt: '及物动词', vi: '不及物动词', ad: '副词', u: '不可数', c: '可数',
+};
+
+/** 渲染英英释义义项列表：每条 = 词性标签 + 英文释义；难词 → 可点击虚线（点击就地显示解释）。
  *  直接构建 DOM（不用 innerHTML 注入，避免事件绑定丢失与 XSS 面）。 */
-function renderEnDef(text, hardWords, hints) {
+function renderSenses(senses, hardWords, hints) {
   const hs = new Set(hardWords.map((w) => String(w).toLowerCase()));
   const hintMap = new Map((hints || []).map((h) => [String(h.word).toLowerCase(), h]));
-  const parts = String(text).split(/([A-Za-z][A-Za-z'-]*)/g);
   const frag = document.createDocumentFragment();
-  for (const part of parts) {
-    const isWord = /^[A-Za-z]/.test(part);
-    if (isWord && hs.has(part.toLowerCase())) {
-      const b = document.createElement('button');
-      b.className = 'hard-word';
-      b.textContent = part;
-      b.title = '这个词超出你的词汇水平，点击就地查看';
-      const key = part.toLowerCase();
-      b.onclick = () => showWordTip(b, part, hintMap.get(key));
-      frag.appendChild(b);
-    } else {
-      frag.appendChild(document.createTextNode(part));
+  for (const sense of senses) {
+    const row = document.createElement('div');
+    row.className = 'en-sense';
+    const pos = String(sense.pos || '').toLowerCase();
+    if (pos) {
+      const tag = document.createElement('span');
+      tag.className = 'pos';
+      tag.textContent = POS_LABEL[pos] || pos + '.';
+      row.appendChild(tag);
     }
+    // 释义文本按词切分，难词渲染为按钮
+    const parts = String(sense.text || '').split(/([A-Za-z][A-Za-z'-]*)/g);
+    for (const part of parts) {
+      const isWord = /^[A-Za-z]/.test(part);
+      const key = part.toLowerCase();
+      if (isWord && hs.has(key)) {
+        const b = document.createElement('button');
+        b.className = 'hard-word';
+        b.textContent = part;
+        b.title = '这个词超出你的词汇水平，点击就地查看';
+        b.onclick = () => showWordTip(b, part, hintMap.get(key));
+        row.appendChild(b);
+      } else {
+        row.appendChild(document.createTextNode(part));
+      }
+    }
+    frag.appendChild(row);
   }
   return frag;
 }

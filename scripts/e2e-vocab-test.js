@@ -35,7 +35,9 @@ app.whenReady().then(async () => {
     // 1. 查 far-above 词 arduous
     const p1 = JSON.parse(await popup.webContents.executeJavaScript(
       `(async () => JSON.stringify(await window.tranen.query('arduous')))()`, true));
-    check('payload: enDefinition 存在', !!(p1.enDefinition && p1.enDefinition.text.length > 50));
+    check('payload: enDefinition 义项存在', !!(p1.enDefinition && p1.enDefinition.senses && p1.enDefinition.senses.length > 0),
+      `senses=${p1.enDefinition.senses.length}`);
+    check('payload: 义项含词性与文本', p1.enDefinition.senses.every((s) => typeof s.pos === 'string' && s.text.length > 5));
     check('payload: hints 随下发', Array.isArray(p1.enDefinition.hints) && p1.enDefinition.hints.length === p1.enDefinition.hard.length,
       `hard=${p1.enDefinition.hard.length} hints=${p1.enDefinition.hints.length}`);
     check('payload: wordLevel = far-above', p1.wordLevel && p1.wordLevel.level === 'far-above',
@@ -43,9 +45,11 @@ app.whenReady().then(async () => {
     const dom1 = await popup.webContents.executeJavaScript(`({
       enSec: !document.getElementById('en-def-section').classList.contains('hidden'),
       hardBtns: document.querySelectorAll('.hard-word').length,
+      senseRows: document.querySelectorAll('.en-sense').length,
       badge: document.getElementById('badges').textContent
     })`);
     check('渲染: 英英释义区块可见', dom1.enSec === true);
+    check('渲染: 义项按行渲染', dom1.senseRows === p1.enDefinition.senses.length, `rows=${dom1.senseRows}`);
     check('渲染: 难词按钮已生成', dom1.hardBtns >= 3, `hardBtns=${dom1.hardBtns}`);
     check('渲染: 徽章显示"远超你水平"', dom1.badge.includes('远超你水平'), dom1.badge);
 
@@ -76,6 +80,14 @@ app.whenReady().then(async () => {
     })`);
     check('渲染: apple 英英释义可见', dom3.enSec === true);
     check('渲染: apple 徽章"在你水平内"', dom3.badge.includes('在你水平内'), dom3.badge);
+
+    // 4. 义项拆分质量：human 应拆出 3 条形容词义项（用户反馈的原始格式）
+    const p4 = JSON.parse(await popup.webContents.executeJavaScript(
+      `(async () => JSON.stringify(await window.tranen.query('human')))()`, true));
+    check('human: 义项拆分为 3 条', p4.enDefinition.senses.length === 3, `senses=${p4.enDefinition.senses.length}`);
+    check('human: 词性均为 a（形容词）', p4.enDefinition.senses.every((s) => s.pos === 'a'));
+    check('human: 首条义项文本正确', p4.enDefinition.senses[0].text.includes('characteristic of humanity'),
+      p4.enDefinition.senses[0].text.slice(0, 50));
   } catch (e) {
     console.error('❌ 异常:', e);
     failed++;

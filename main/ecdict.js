@@ -98,4 +98,29 @@ function parseTranslation(translation) {
     });
 }
 
-module.exports = { init, isInstalled, lookup, parseTranslation, DIR, DB_PATH, LEMMA_PATH };
+// WordNet 词性短码（definition 字段开头，如 "a. characteristic..." 或 "v levy..."）
+// 注意：必须是捕获组，后续正则依赖 m[1] 取词性
+const POS_SHORT = '(n|v|a|s|r|vt|vi|ad|u|c)';
+
+/**
+ * 英文释义字段 → [{pos, text}]：按行切分，识别词性前缀（兼容 "a. xxx" 与 "v xxx" 两种格式），
+ * 行内多个义项（如 run 的 "n. xxx n. yyy"）也拆开；上限 8 条、每条截断，避免超长词条刷屏。
+ */
+function parseDefinition(def) {
+  const lines = String(def || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  const senses = [];
+  for (const line of lines) {
+    // 行内多义项二次切分（词性字母后必须带点，避免误切正文中的 " a "）
+    const parts = line.split(new RegExp(`\\s+(?=${POS_SHORT}\\.\\s)`));
+    for (let part of parts) {
+      part = part.trim();
+      const m = part.match(new RegExp(`^${POS_SHORT}\\.?\\s+(.*)$`));
+      senses.push(m ? { pos: m[1].toLowerCase(), text: m[2] } : { pos: '', text: part });
+      if (senses.length >= 8) break;
+    }
+    if (senses.length >= 8) break;
+  }
+  return senses.map((s) => ({ pos: s.pos, text: String(s.text).slice(0, 140) }));
+}
+
+module.exports = { init, isInstalled, lookup, parseTranslation, parseDefinition, DIR, DB_PATH, LEMMA_PATH };

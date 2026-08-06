@@ -68,7 +68,7 @@ async function lookupWord(word) {
       const { maxBnc } = vocab.levelInfo(lvl.score);
       const { hard } = vocab.annotateHardWords(dict.definition, maxBnc);
       payload.enDefinition = {
-        text: dict.definition.length > 280 ? dict.definition.slice(0, 280) + '…' : dict.definition,
+        senses: ecdict.parseDefinition(dict.definition), // 拆分后的义项 [{pos, text}]
         hard,
         hints: vocab.hardWordHints(hard), // 难词就地化解提示（中文第一义 + 英文简释）
       };
