@@ -214,6 +214,7 @@ npx electron scripts/gui-test.js     # GUI end-to-end: IPC / rendering / persist
 npx electron scripts/uia-test.js     # UIA grabbing + resident PowerShell channel
 npx electron scripts/dl-test.js      # ECDICT download + lookup verification
 npx electron scripts/vocab-test.js   # vocabulary self-test: sampling / fake-word calibration / scoring / hard-word marking
+npx electron scripts/e2e-vocab-test.js  # end-to-end: real lookup rendering with a vocabulary level (EN definitions / tips / badges)
 npx electron scripts/perf-test.js    # performance benchmark
 ```
 

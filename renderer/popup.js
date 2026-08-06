@@ -82,7 +82,7 @@ function renderWord(p) {
     enDef.innerHTML = escapeHtml(p.simpleDef);
   } else if (p.enDefinition && p.enDefinition.text) {
     enSec.classList.remove('hidden');
-    enDef.innerHTML = renderEnDef(p.enDefinition.text, p.enDefinition.hard || [], p.enDefinition.hints || []);
+    enDef.replaceChildren(renderEnDef(p.enDefinition.text, p.enDefinition.hard || [], p.enDefinition.hints || []));
   } else {
     enSec.classList.add('hidden');
     enDef.innerHTML = '';
@@ -200,25 +200,28 @@ function highlightWord(text, word) {
   return escapeHtml(text).replace(re, '<mark>$1</mark>');
 }
 
-/** 渲染英英释义：超出用户词汇水平的词 → 可点击的虚线高亮（点击就地显示简单解释） */
+/** 渲染英英释义：超出用户词汇水平的词 → 可点击的虚线高亮（点击就地显示简单解释）。
+ *  直接构建 DOM（不用 innerHTML 注入，避免事件绑定丢失与 XSS 面）。 */
 function renderEnDef(text, hardWords, hints) {
   const hs = new Set(hardWords.map((w) => String(w).toLowerCase()));
   const hintMap = new Map((hints || []).map((h) => [String(h.word).toLowerCase(), h]));
   const parts = String(text).split(/([A-Za-z][A-Za-z'-]*)/g);
-  return parts
-    .map((part) => {
-      const isWord = /^[A-Za-z]/.test(part);
-      if (isWord && hs.has(part.toLowerCase())) {
-        const b = document.createElement('button');
-        b.className = 'hard-word';
-        b.textContent = part;
-        b.title = '这个词超出你的词汇水平，点击就地查看';
-        b.onclick = () => showWordTip(b, part, hintMap.get(part.toLowerCase()));
-        return b.outerHTML;
-      }
-      return isWord ? part : escapeHtml(part);
-    })
-    .join('');
+  const frag = document.createDocumentFragment();
+  for (const part of parts) {
+    const isWord = /^[A-Za-z]/.test(part);
+    if (isWord && hs.has(part.toLowerCase())) {
+      const b = document.createElement('button');
+      b.className = 'hard-word';
+      b.textContent = part;
+      b.title = '这个词超出你的词汇水平，点击就地查看';
+      const key = part.toLowerCase();
+      b.onclick = () => showWordTip(b, part, hintMap.get(key));
+      frag.appendChild(b);
+    } else {
+      frag.appendChild(document.createTextNode(part));
+    }
+  }
+  return frag;
 }
 
 // ---------- 难词就地浮层 ----------

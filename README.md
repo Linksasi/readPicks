@@ -214,6 +214,7 @@ npx electron scripts/gui-test.js     # GUI 全链路：IPC / 渲染 / 持久化
 npx electron scripts/uia-test.js     # UIA 取词 + PowerShell 常驻通道
 npx electron scripts/dl-test.js      # ECDICT 下载 + 查询验证
 npx electron scripts/vocab-test.js   # 词汇量自测：抽样 / 假词校准 / 计分 / 难词标注
+npx electron scripts/e2e-vocab-test.js  # 端到端：带词汇量的真实查词渲染（英英释义/浮层/徽章）
 npx electron scripts/perf-test.js    # 性能基准
 ```
 
