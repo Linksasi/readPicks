@@ -6,6 +6,17 @@ const fs = require('fs');
 const config = require('../main/config');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// 等待渲染完成：query 的 promise 在 IPC 返回即 resolve，DOM 渲染是异步的，需轮询
+async function waitRender(popup, condExpr, timeout = 5000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    try {
+      if (await popup.webContents.executeJavaScript(condExpr, true)) return true;
+    } catch { /* 页面未就绪 */ }
+    await sleep(100);
+  }
+  return false;
+}
 app.whenReady().then(async () => {
   const cfgPath = config.getConfigPath();
   const backup = fs.existsSync(cfgPath) ? fs.readFileSync(cfgPath, 'utf8') : null;
@@ -22,11 +33,19 @@ app.whenReady().then(async () => {
   };
   try {
     // 模拟用户测过词汇量：4000 词 / B1（maxBnc=3200 → apple(2446)=within，arduous(13723)=far-above）
-    config.update({ vocabLevel: { score: 4000, cefr: 'B1', buckets: [], fakeKnown: 0, takenAt: Date.now() } });
+    // 并锁定离线路径（不依赖用户 LLM 配置、不触发网络），确保测到 senses 渲染分支
+    config.update({
+      vocabLevel: { score: 4000, cefr: 'B1', buckets: [], fakeKnown: 0, takenAt: Date.now() },
+      provider: 'mymemory',
+      providers: { llm: { apiKey: '' } },
+    });
     require('../main/index');
     await sleep(1500);
     const windowMgr = require('../main/window');
     const popup = windowMgr.createPopup();
+    popup.webContents.on('console-message', (_e, level, msg) => {
+      if (level >= 2) console.log('[renderer-error]', msg);
+    });
     if (popup.webContents.isLoading()) {
       await new Promise((res) => popup.webContents.once('did-finish-load', res));
     }
@@ -42,16 +61,21 @@ app.whenReady().then(async () => {
       `hard=${p1.enDefinition.hard.length} hints=${p1.enDefinition.hints.length}`);
     check('payload: wordLevel = far-above', p1.wordLevel && p1.wordLevel.level === 'far-above',
       JSON.stringify(p1.wordLevel));
+    check('渲染等待: arduous 义项已渲染', await waitRender(popup, `document.querySelectorAll('.en-sense').length > 0`));
     const dom1 = await popup.webContents.executeJavaScript(`({
       enSec: !document.getElementById('en-def-section').classList.contains('hidden'),
       hardBtns: document.querySelectorAll('.hard-word').length,
       senseRows: document.querySelectorAll('.en-sense').length,
-      badge: document.getElementById('badges').textContent
+      badge: document.getElementById('badges').textContent,
+      enBeforeDefs: (document.getElementById('en-def-section').compareDocumentPosition(document.getElementById('defs')) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+      defsMuted: document.getElementById('defs').classList.contains('muted')
     })`);
     check('渲染: 英英释义区块可见', dom1.enSec === true);
     check('渲染: 义项按行渲染', dom1.senseRows === p1.enDefinition.senses.length, `rows=${dom1.senseRows}`);
     check('渲染: 难词按钮已生成', dom1.hardBtns >= 3, `hardBtns=${dom1.hardBtns}`);
     check('渲染: 徽章显示"远超你水平"', dom1.badge.includes('远超你水平'), dom1.badge);
+    check('排版: 英文释义在中文释义之上（理念：英英优先）', dom1.enBeforeDefs === true);
+    check('排版: 中文释义已弱化（muted）', dom1.defsMuted === true);
 
     // 2. 点击第一个难词 → 就地浮层
     const tip = await popup.webContents.executeJavaScript(`(async () => {
@@ -74,6 +98,7 @@ app.whenReady().then(async () => {
     const p3 = JSON.parse(await popup.webContents.executeJavaScript(
       `(async () => JSON.stringify(await window.tranen.query('apple')))()`, true));
     check('payload: apple wordLevel = within', p3.wordLevel && p3.wordLevel.level === 'within', JSON.stringify(p3.wordLevel));
+    check('渲染等待: apple 已渲染', await waitRender(popup, `document.getElementById('badges').textContent.includes('在你水平内')`));
     const dom3 = await popup.webContents.executeJavaScript(`({
       enSec: !document.getElementById('en-def-section').classList.contains('hidden'),
       badge: document.getElementById('badges').textContent
@@ -84,6 +109,7 @@ app.whenReady().then(async () => {
     // 4. 义项拆分质量：human 应拆出 3 条形容词义项（用户反馈的原始格式）
     const p4 = JSON.parse(await popup.webContents.executeJavaScript(
       `(async () => JSON.stringify(await window.tranen.query('human')))()`, true));
+    check('渲染等待: human 已渲染', await waitRender(popup, `document.querySelectorAll('.en-sense').length === 3`));
     check('human: 义项拆分为 3 条', p4.enDefinition.senses.length === 3, `senses=${p4.enDefinition.senses.length}`);
     check('human: 词性均为 a（形容词）', p4.enDefinition.senses.every((s) => s.pos === 'a'));
     check('human: 首条义项文本正确', p4.enDefinition.senses[0].text.includes('characteristic of humanity'),

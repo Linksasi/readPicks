@@ -56,6 +56,7 @@ function renderWord(p) {
 
   const defs = document.getElementById('defs');
   defs.innerHTML = '';
+  defs.classList.toggle('muted', !!p.vocabLevel); // 测过词汇量 → 中文释义弱化为对照兜底
   if (p.defs && p.defs.length) {
     for (const d of p.defs) {
       const li = document.createElement('li');

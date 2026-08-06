@@ -113,18 +113,34 @@ header {
 }
 .hard-word:hover { text-decoration: underline solid; }
 
-/* 英英释义义项列表 */
-.en-sense { display: flex; gap: 8px; padding: 2px 0; align-items: baseline; }
+/* 英英释义区（理念核心：先英文理解，中文作对照） */
+#en-def { font-size: 14px; line-height: 1.6; }
+#en-def-section .section-title { margin-bottom: 6px; }
+.en-sense {
+  display: flex;
+  gap: 9px;
+  padding: 3px 0;
+  align-items: baseline;
+  border-radius: 6px;
+}
 .en-sense .pos {
-  flex: 0 0 56px;
-  font-size: 11px;
+  flex: 0 0 auto;
+  min-width: 54px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--accent);
   background: var(--chip-bg);
-  border-radius: 4px;
-  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
   text-align: center;
+  transform: translateY(-1px);
 }
+
+/* 中文释义弱化（测过词汇量后：英文是主菜，中文是兜底） */
+.defs.muted { color: var(--muted); }
+.defs.muted .pos { color: var(--muted); }
+.defs.muted li:hover { color: var(--fg); }
 
 /* 难词就地浮层 */
 .word-tip {
