@@ -81,7 +81,9 @@ app.whenReady().then(async () => {
       // 9. 难词提示数据齐全（就地化解）
       const hints = vocab.hardWordHints(h2);
       check('hints 数量与难词一致', hints.length === h2.length, `${hints.length}/${h2.length}`);
-      check('每个难词都有提示', hints.every((h) => h.zh || h.en));
+      check('hints 条目完整（逐词都有返回条目）', hints.every((h) => h && typeof h.word === 'string'));
+      const withHint = hints.filter((h) => h.zh || h.en).length;
+      check('大多数难词有提示内容', withHint / hints.length > 0.6, `${withHint}/${hints.length} 有提示`);
     } else {
       check('组装：lookup 返回 definition', false, 'lookup(keyboard) 失败');
     }

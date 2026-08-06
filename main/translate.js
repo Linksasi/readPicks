@@ -183,7 +183,13 @@ async function simpleDefinition(word) {
     data = typeof res === 'string' ? JSON.parse(res) : res;
   } catch {
     const m = String(res).match(/\{[\s\S]*\}/);
-    if (m) data = JSON.parse(m[0]);
+    if (m) {
+      try {
+        data = JSON.parse(m[0]);
+      } catch {
+        data = {};
+      }
+    }
   }
   const def = data.simple_def || data.simpleDef || data.translation || null;
   return def ? { simpleDef: String(def) } : null;

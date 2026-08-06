@@ -22,6 +22,7 @@ api.onLookupResult((p) => {
 });
 
 function renderWord(p) {
+  closeWordTip(); // 新查询时关闭可能残留的难词浮层
   currentWord = p.word;
   document.getElementById('word-view').classList.remove('hidden');
   document.getElementById('sentence-view').classList.add('hidden');
@@ -267,10 +268,11 @@ function showWordTip(anchor, word, hint) {
 function closeWordTip() {
   if (tipEl) { tipEl.remove(); tipEl = null; }
 }
-// 点击浮层外任意处关闭
+// 点击浮层外任意处关闭；卡片滚动时也关闭（浮层为 fixed 定位，不跟随滚动）
 document.addEventListener('click', (e) => {
   if (tipEl && !tipEl.contains(e.target) && !e.target.classList.contains('hard-word')) closeWordTip();
 });
+document.querySelector('.card').addEventListener('scroll', closeWordTip);
 function fmtTime(ts) {
   if (!ts) return '';
   const d = new Date(ts);

@@ -192,12 +192,13 @@ function annotateHardWords(defText, maxBnc) {
 }
 
 /** 取 ECDICT 释义的第一个义项（WordNet 格式 "n. xxx n. yyy" → 第一段） */
+const POS_RE = '(?:n|v|a|s|r|vt|vi|ad)\\.';
 function firstSense(def) {
   const d = String(def || '').trim();
   if (!d) return '';
-  const m = d.match(/^[nvas]{1,2}\.\s*(.*)$/s);
+  const m = d.match(new RegExp(`^${POS_RE}\\s*(.*)$`, 's'));
   if (!m) return d.slice(0, 90);
-  const nxt = m[1].match(/\s+[nvas]{1,2}\.\s/);
+  const nxt = m[1].match(new RegExp(`\\s+${POS_RE}\\s`));
   const sense = nxt ? m[1].slice(0, nxt.index) : m[1];
   return sense.trim().slice(0, 90);
 }
@@ -209,23 +210,27 @@ function firstSense(def) {
  */
 function hardWordHints(hardWords) {
   const conn = ensureDb();
-  if (!conn) return [];
-  const out = [];
-  for (const w of hardWords) {
-    const key = String(w).toLowerCase();
-    const row = conn.prepare('SELECT translation, definition FROM stardict WHERE word = ? LIMIT 1').get(key);
-    if (!row) {
-      out.push({ word: w, zh: '', en: '' });
-      continue;
+  if (!conn || !hardWords.length) return [];
+  const keys = hardWords.map((w) => String(w).toLowerCase());
+  // 批量查询（词条按 word 唯一索引，IN 分批避免超占位符上限）
+  const rows = new Map();
+  for (let i = 0; i < keys.length; i += 50) {
+    const chunk = keys.slice(i, i + 50);
+    const ph = chunk.map(() => '?').join(',');
+    for (const r of conn.prepare(`SELECT word, translation, definition FROM stardict WHERE word IN (${ph})`).all(...chunk)) {
+      rows.set(String(r.word).toLowerCase(), r);
     }
+  }
+  return keys.map((key) => {
+    const row = rows.get(key);
+    if (!row) return { word: key, zh: '', en: '' }; // 未收录：点击后走查词兜底
     // 中文第一义：翻译字段首行（去词性前缀）
     let zh = '';
     const tline = String(row.translation || '').split('\n').map((s) => s.trim()).find(Boolean) || '';
     const tm = tline.match(/^[a-z]+\.\s*(.*)$/i);
     zh = (tm ? tm[1] : tline).slice(0, 60);
-    out.push({ word: w, zh, en: firstSense(row.definition) });
-  }
-  return out;
+    return { word: key, zh, en: firstSense(row.definition) };
+  });
 }
 
 /** 当前已保存的词汇量（config） */
@@ -247,7 +252,7 @@ function wordLevel(bnc, userScore) {
   const b = Number(bnc) || 0;
   if (b <= 0) return { level: 'far-above', bnc: b, maxBnc }; // 语料外/未收录
   if (b <= maxBnc) return { level: 'within', bnc: b, maxBnc };
-  if (b <= userScore * 1.5) return { level: 'above', bnc: b, maxBnc };
+  if (b <= Math.max(userScore * 1.5, maxBnc)) return { level: 'above', bnc: b, maxBnc };
   return { level: 'far-above', bnc: b, maxBnc };
 }
 
