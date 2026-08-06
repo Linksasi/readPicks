@@ -8,6 +8,18 @@ When reading English web pages, papers, or PDFs, select an unfamiliar word and p
 
 ---
 
+## Philosophy
+
+**Don't memorize translations — understand English through English, acquired naturally in context.**
+
+- **English definitions first**: learn like a native speaker — explain a new word with words you already know (*keyboard = "the thing you use to type on a computer"*), instead of building an English↔Chinese mapping; Chinese is only a muted fallback for confirmation
+- **Context is the teacher**: a word's meaning lives in the sentence it appears in. ReadPicks brings the context along, translates the whole sentence, and saves cloze deletions for review — memorizing word lists out of context is anti-philosophy
+- **Adapted to your level**: take a quick vocabulary self-test, and definitions are generated at your level — every explanation stays inside your comfort zone; words beyond it are resolved in place, and the card tells you how hard this word is *for you*
+- **Zero friction while reading**: select-and-look-up with no waiting, no clipboard pollution — looking up a word feels as natural as breathing, so your reading flow never breaks
+- **Reading is accumulating**: every lookup is an accumulation; SM-2 brings old words back at the right time — "meeting a word again while reading" is the best review
+
+---
+
 ## ✨ Features
 
 ### 🖱️ Select-and-look-up (UIA direct read, zero clipboard pollution)
