@@ -21,7 +21,7 @@ When reading English web pages, papers, or PDFs, select an unfamiliar word and p
 
 ### 🧠 Context understanding (the differentiator)
 
-- **Clipboard history recall**: automatically searches sentences copied in the last minute for one containing the queried word and uses it as context — no manual steps needed
+- **Clipboard history recall**: automatically searches sentences copied in the last 10 minutes for one containing the queried word and uses it as context — no manual steps needed
 - **In-context meaning**: full-sentence translation plus the word's **exact meaning in that sentence** (distinct from the dictionary's general definition)
 - **Cloze saved**: the context sentence is stored in fill-in-the-blank form `{{c1::word}}`, so review tests recall first
 - With an **LLM translation provider** configured, you also get: why it's translated this way, part-of-speech/collocation/grammar usage, and other words in the sentence worth learning
@@ -114,7 +114,7 @@ npx electron-builder --win portable  # portable green build
 | Action | How |
 |---|---|
 | **Look up a word/phrase** | Select text → press `Alt+Q` |
-| **Look up with context** | Copy a sentence **containing the word** with Ctrl+C (within 1 minute) → select the word → press `Alt+Q`; context appears automatically |
+| **Look up with context** | Copy a sentence **containing the word** with Ctrl+C (within 10 minutes) → select the word → press `Alt+Q`; context appears automatically |
 | **Translate a sentence** | Select the whole sentence → press `Alt+Q` (auto sentence translation, PDF line breaks cleaned) |
 | **Hear pronunciation** | Click 🇬🇧 / 🇺🇸 on the word card |
 | **Review** | Tray → "Today's Review" → self-grade Forgot / Fuzzy / Known |
