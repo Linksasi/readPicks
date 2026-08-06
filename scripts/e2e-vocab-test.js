@@ -116,6 +116,10 @@ app.whenReady().then(async () => {
     check('human: 词性均为 a（形容词）', p4.enDefinition.senses.every((s) => s.pos === 'a'));
     check('human: 首条义项文本正确', p4.enDefinition.senses[0].text.includes('characteristic of humanity'),
       p4.enDefinition.senses[0].text.slice(0, 50));
+    const humanText = await popup.webContents.executeJavaScript(
+      `document.querySelector('.en-sense').textContent`);
+    check('排版: 词间空格正常保留（无粘连）', /characteristic of humanity/.test(humanText),
+      humanText.slice(0, 60));
   } catch (e) {
     console.error('❌ 异常:', e);
     failed++;

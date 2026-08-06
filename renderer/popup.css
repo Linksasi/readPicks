@@ -102,6 +102,7 @@ header {
 .context { font-size: 14px; }
 .context mark { background: var(--mark-bg); color: inherit; border-radius: 3px; padding: 0 2px; }
 .hard-word {
+  display: inline; /* 保持文本流，词间空格正常渲染 */
   background: none;
   border: none;
   padding: 0;
@@ -116,15 +117,14 @@ header {
 /* 英英释义区（理念核心：先英文理解，中文作对照） */
 #en-def { font-size: 14px; line-height: 1.6; }
 #en-def-section .section-title { margin-bottom: 6px; }
+/* 注意：必须用普通文本流（不能用 flex）——词间空格靠 textNode 渲染，flex 会吞掉空白 */
 .en-sense {
-  display: flex;
-  gap: 9px;
+  display: block;
   padding: 3px 0;
-  align-items: baseline;
-  border-radius: 6px;
+  line-height: 1.6;
 }
 .en-sense .pos {
-  flex: 0 0 auto;
+  display: inline-block;
   min-width: 54px;
   font-size: 10.5px;
   font-weight: 600;
@@ -134,7 +134,8 @@ header {
   border-radius: 5px;
   padding: 1px 6px;
   text-align: center;
-  transform: translateY(-1px);
+  margin-right: 6px;
+  vertical-align: baseline;
 }
 
 /* 中文释义折叠区（测过词汇量后默认折叠：中文是兜底，需要时再打开） */
