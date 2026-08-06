@@ -18,3 +18,7 @@ scripts/mini-ecdict.zip
 # 未使用的空目录
 data/
 AGENTS.md
+
+# 敏感配置（防误提交；真实配置在 %APPDATA%/readpicks/ 下）
+config.json
+*.local.json
