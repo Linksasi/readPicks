@@ -168,7 +168,29 @@ async function llm(text, p, wantJson = false) {
   return wantJson ? content : { translation: content };
 }
 
+/** 单独生成某个词的简单英语释义（LLM，COBUILD 风格一句话）。返回 { simpleDef } 或 null */
+async function simpleDefinition(word) {
+  const cfg = load();
+  const p = cfg.providers.llm;
+  if (!p?.apiKey) return null;
+  const res = await llm(
+    '请用一句简单的英语解释这个单词（不要翻译成中文），按 JSON 返回：{"simple_def":"..."}\n' + word,
+    p,
+    true
+  );
+  let data = {};
+  try {
+    data = typeof res === 'string' ? JSON.parse(res) : res;
+  } catch {
+    const m = String(res).match(/\{[\s\S]*\}/);
+    if (m) data = JSON.parse(m[0]);
+  }
+  const def = data.simple_def || data.simpleDef || data.translation || null;
+  return def ? { simpleDef: String(def) } : null;
+}
+
 module.exports = {
   translateSentence: withCache(translateSentence),
   lookupInContext: withCache(lookupInContext),
+  simpleDefinition: withCache(simpleDefinition),
 };

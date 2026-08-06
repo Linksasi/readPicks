@@ -76,6 +76,14 @@ header {
   color: var(--muted);
 }
 .badge.star { color: #b45309; }
+.badge.ok { background: #dcfce7; color: #166534; }
+.badge.warn { background: #fef3c7; color: #92400e; }
+.badge.hard { background: #fee2e2; color: #b91c1c; }
+@media (prefers-color-scheme: dark) {
+  .badge.ok { background: #14532d; color: #86efac; }
+  .badge.warn { background: #713f12; color: #fde68a; }
+  .badge.hard { background: #7f1d1d; color: #fca5a5; }
+}
 
 .defs { list-style: none; margin: 8px 0 4px; }
 .defs li { display: flex; gap: 8px; padding: 3px 0; align-items: baseline; }
@@ -104,6 +112,23 @@ header {
   cursor: pointer;
 }
 .hard-word:hover { text-decoration: underline solid; }
+
+/* 难词就地浮层 */
+.word-tip {
+  position: fixed;
+  z-index: 999;
+  max-width: 280px;
+  background: var(--chip-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .22);
+}
+.word-tip-head { font-weight: 700; font-size: 13.5px; color: var(--accent); margin-bottom: 2px; }
+.word-tip-zh { color: var(--fg); }
+.word-tip-en { color: var(--muted); }
 .context-trans { color: var(--fg); }
 .word-in-sentence { font-weight: 600; color: var(--accent); margin-top: 6px; }
 .explain { color: var(--muted); font-size: 13px; margin-top: 6px; }

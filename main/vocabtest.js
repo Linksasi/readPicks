@@ -191,10 +191,64 @@ function annotateHardWords(defText, maxBnc) {
   return { hard: [...hard] };
 }
 
+/** 取 ECDICT 释义的第一个义项（WordNet 格式 "n. xxx n. yyy" → 第一段） */
+function firstSense(def) {
+  const d = String(def || '').trim();
+  if (!d) return '';
+  const m = d.match(/^[nvas]{1,2}\.\s*(.*)$/s);
+  if (!m) return d.slice(0, 90);
+  const nxt = m[1].match(/\s+[nvas]{1,2}\.\s/);
+  const sense = nxt ? m[1].slice(0, nxt.index) : m[1];
+  return sense.trim().slice(0, 90);
+}
+
+/**
+ * 难词就地化解：为每个难词查「中文第一义 + 英文简释」，随查词结果一起下发，
+ * 用户点击难词即可就地看懂，无需再查一次。
+ * @returns {Array<{word, zh, en}>}
+ */
+function hardWordHints(hardWords) {
+  const conn = ensureDb();
+  if (!conn) return [];
+  const out = [];
+  for (const w of hardWords) {
+    const key = String(w).toLowerCase();
+    const row = conn.prepare('SELECT translation, definition FROM stardict WHERE word = ? LIMIT 1').get(key);
+    if (!row) {
+      out.push({ word: w, zh: '', en: '' });
+      continue;
+    }
+    // 中文第一义：翻译字段首行（去词性前缀）
+    let zh = '';
+    const tline = String(row.translation || '').split('\n').map((s) => s.trim()).find(Boolean) || '';
+    const tm = tline.match(/^[a-z]+\.\s*(.*)$/i);
+    zh = (tm ? tm[1] : tline).slice(0, 60);
+    out.push({ word: w, zh, en: firstSense(row.definition) });
+  }
+  return out;
+}
+
 /** 当前已保存的词汇量（config） */
 function currentLevel() {
   const cfg = load();
   return cfg.vocabLevel || null;
 }
 
-module.exports = { startTest, finishTest, levelInfo, annotateHardWords, currentLevel, toCefr, BUCKETS };
+/**
+ * 词难度判定：该词的 bnc 词频排名相对用户词汇量的难度。
+ * @returns {null|{level:'within'|'above'|'far-above', bnc, maxBnc}}
+ *   within    = 在用户水平内（bnc ≤ 词汇量×0.8）
+ *   above     = 略超水平（≤ 词汇量×1.5）
+ *   far-above = 远超水平或语料外生僻词
+ */
+function wordLevel(bnc, userScore) {
+  if (!userScore) return null;
+  const { maxBnc } = levelInfo(userScore);
+  const b = Number(bnc) || 0;
+  if (b <= 0) return { level: 'far-above', bnc: b, maxBnc }; // 语料外/未收录
+  if (b <= maxBnc) return { level: 'within', bnc: b, maxBnc };
+  if (b <= userScore * 1.5) return { level: 'above', bnc: b, maxBnc };
+  return { level: 'far-above', bnc: b, maxBnc };
+}
+
+module.exports = { startTest, finishTest, levelInfo, annotateHardWords, hardWordHints, currentLevel, wordLevel, toCefr, BUCKETS };

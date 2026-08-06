@@ -69,8 +69,9 @@ All translations are cached for **10 minutes** to avoid repeated requests.
 - **60 questions · ~2 minutes**: stratified sampling across 6 BNC frequency bands, with fake words mixed in for calibration (inspired by TestYourVocab's bucket estimation + LexTALE's real/fake-word method), fully offline
 - Result: estimated vocabulary size + CEFR level (A1-C2) + per-band accuracy
 - **Takes effect immediately**: lookups show more than Chinese — first a **simple English definition matched to your vocabulary level** (explaining new words with words you already know, instead of memorizing translations)
-  - **LLM mode**: wording is automatically constrained to your level (COBUILD-style one-sentence definition)
-  - **Offline mode**: WordNet definition shown, with words beyond your level marked as dotted highlights — click one to look it up
+  - **LLM mode**: whether or not you copied a context sentence, lookups generate a COBUILD-style one-sentence definition constrained to your level (falls back to offline definitions when no LLM is configured)
+  - **Offline mode**: WordNet definition shown, with words beyond your level marked as dotted highlights — **click one to see its Chinese first sense + short English gloss in place**, no second lookup needed
+  - **Difficulty badge**: the word card shows how hard this word is for you — ✓ within your level / ▲ slightly above / ▲▲ far above (hover for its frequency rank)
 - Keyboard shortcuts for fast answering (→/Space = know, ←/X = don't know); retake anytime
 
 ### 🎛️ More

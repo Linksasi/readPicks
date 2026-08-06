@@ -1,11 +1,11 @@
-// 临时验证脚本：词汇量测试模块（跑完即删）
+// 词汇量测试模块验证脚本：抽样 / 假词校准 / 计分 / CEFR / 难词标注与提示 / wordLevel / 释义链路
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
 const vocab = require('../main/vocabtest');
 const config = require('../main/config');
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // 备份 config，测试后恢复（finishTest 会写盘）
   const cfgPath = config.getConfigPath();
   const backup = fs.existsSync(cfgPath) ? fs.readFileSync(cfgPath, 'utf8') : null;
@@ -77,9 +77,32 @@ app.whenReady().then(() => {
       check('组装：annotate 返回难词列表', Array.isArray(h2));
       console.log('   释义@3000:', dict.definition.slice(0, 90));
       console.log('   难词:', h2.slice(0, 8).join(', '));
+
+      // 9. 难词提示数据齐全（就地化解）
+      const hints = vocab.hardWordHints(h2);
+      check('hints 数量与难词一致', hints.length === h2.length, `${hints.length}/${h2.length}`);
+      check('每个难词都有提示', hints.every((h) => h.zh || h.en));
     } else {
       check('组装：lookup 返回 definition', false, 'lookup(keyboard) 失败');
     }
+
+    // 10. wordLevel 判定（词汇量 3000 → maxBnc=2400，above 上限=4500）
+    const wlCases = [[1, 'within'], [2000, 'within'], [2500, 'above'], [4000, 'above'], [5000, 'far-above'], [13723, 'far-above'], [0, 'far-above'], ['', 'far-above']];
+    for (const [bnc, expect] of wlCases) {
+      const r = vocab.wordLevel(bnc, 3000);
+      check(`wordLevel(${bnc}) = ${expect}`, r.level === expect, `实际 ${r.level}`);
+    }
+    check('wordLevel 未测词汇量 → null', vocab.wordLevel(5000, 0) === null);
+    // 真实词难度：the(keyboard 场景外) 与 arduous
+    const dThe = ecdict.lookup('the');
+    check('the 对 3000 词汇量 = within', dThe && vocab.wordLevel(dThe.bnc, 3000).level === 'within');
+    const dArd = ecdict.lookup('arduous');
+    check('arduous 对 3000 词汇量 = far-above', dArd && vocab.wordLevel(dArd.bnc, 3000).level === 'far-above');
+
+    // 11. simpleDefinition 未配置 LLM 时返回 null（不发起网络请求）
+    const translate = require('../main/translate');
+    const sd = await translate.simpleDefinition('keyboard');
+    check('simpleDefinition 无 apiKey → null', sd === null, JSON.stringify(sd));
   } catch (e) {
     console.error('❌ 异常:', e);
     failed++;

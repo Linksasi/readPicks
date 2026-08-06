@@ -31,6 +31,19 @@ function renderWord(p) {
 
   const badges = document.getElementById('badges');
   badges.innerHTML = '';
+  if (p.wordLevel) {
+    const map = {
+      within: ['badge ok', '✓ 在你水平内'],
+      above: ['badge warn', '▲ 略超你水平'],
+      'far-above': ['badge hard', '▲▲ 远超你水平'],
+    };
+    const [cls, label] = map[p.wordLevel.level] || ['badge', ''];
+    if (label) {
+      const b = el('span', cls, label);
+      b.title = `词频排名 ${p.wordLevel.bnc || '语料外'}（你的水平线 ≈ ${p.wordLevel.maxBnc}）`;
+      badges.appendChild(b);
+    }
+  }
   if (p.collins > 0) {
     const b = el('span', 'badge star', '柯林斯 ' + '★'.repeat(p.collins));
     badges.appendChild(b);
@@ -68,7 +81,7 @@ function renderWord(p) {
     enDef.innerHTML = escapeHtml(p.simpleDef);
   } else if (p.enDefinition && p.enDefinition.text) {
     enSec.classList.remove('hidden');
-    enDef.innerHTML = renderEnDef(p.enDefinition.text, p.enDefinition.hard || []);
+    enDef.innerHTML = renderEnDef(p.enDefinition.text, p.enDefinition.hard || [], p.enDefinition.hints || []);
   } else {
     enSec.classList.add('hidden');
     enDef.innerHTML = '';
@@ -186,9 +199,10 @@ function highlightWord(text, word) {
   return escapeHtml(text).replace(re, '<mark>$1</mark>');
 }
 
-/** 渲染英英释义：超出用户词汇水平的词 → 可点击的虚线高亮（点击再查） */
-function renderEnDef(text, hardWords) {
+/** 渲染英英释义：超出用户词汇水平的词 → 可点击的虚线高亮（点击就地显示简单解释） */
+function renderEnDef(text, hardWords, hints) {
   const hs = new Set(hardWords.map((w) => String(w).toLowerCase()));
+  const hintMap = new Map((hints || []).map((h) => [String(h.word).toLowerCase(), h]));
   const parts = String(text).split(/([A-Za-z][A-Za-z'-]*)/g);
   return parts
     .map((part) => {
@@ -197,14 +211,66 @@ function renderEnDef(text, hardWords) {
         const b = document.createElement('button');
         b.className = 'hard-word';
         b.textContent = part;
-        b.title = '这个词超出你的词汇水平，点击查看';
-        b.onclick = () => api.query(part);
+        b.title = '这个词超出你的词汇水平，点击就地查看';
+        b.onclick = () => showWordTip(b, part, hintMap.get(part.toLowerCase()));
         return b.outerHTML;
       }
       return isWord ? part : escapeHtml(part);
     })
     .join('');
 }
+
+// ---------- 难词就地浮层 ----------
+let tipEl = null;
+function showWordTip(anchor, word, hint) {
+  closeWordTip();
+  const tip = document.createElement('div');
+  tip.className = 'word-tip';
+  const head = document.createElement('div');
+  head.className = 'word-tip-head';
+  head.textContent = word;
+  tip.appendChild(head);
+  const zh = hint && hint.zh;
+  const en = hint && hint.en;
+  if (zh) {
+    const d = document.createElement('div');
+    d.className = 'word-tip-zh';
+    d.textContent = zh;
+    tip.appendChild(d);
+  }
+  if (en) {
+    const d = document.createElement('div');
+    d.className = 'word-tip-en';
+    d.textContent = en;
+    tip.appendChild(d);
+  }
+  if (!zh && !en) {
+    const d = document.createElement('div');
+    d.className = 'word-tip-en';
+    d.textContent = '（词典无简释，点击可查词）';
+    tip.appendChild(d);
+    tip.style.cursor = 'pointer';
+    tip.onclick = () => api.query(word);
+  }
+  document.body.appendChild(tip);
+  // 定位：按钮下方，越界翻转到上方/左侧
+  const r = anchor.getBoundingClientRect();
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  let x = Math.min(r.left, window.innerWidth - tw - 8);
+  let y = r.bottom + 4;
+  if (y + th > window.innerHeight - 8) y = Math.max(4, r.top - th - 4);
+  tip.style.left = Math.max(4, x) + 'px';
+  tip.style.top = y + 'px';
+  tipEl = tip;
+}
+function closeWordTip() {
+  if (tipEl) { tipEl.remove(); tipEl = null; }
+}
+// 点击浮层外任意处关闭
+document.addEventListener('click', (e) => {
+  if (tipEl && !tipEl.contains(e.target) && !e.target.classList.contains('hard-word')) closeWordTip();
+});
 function fmtTime(ts) {
   if (!ts) return '';
   const d = new Date(ts);

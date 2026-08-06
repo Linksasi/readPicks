@@ -70,8 +70,10 @@ async function lookupWord(word) {
       payload.enDefinition = {
         text: dict.definition.length > 280 ? dict.definition.slice(0, 280) + '…' : dict.definition,
         hard,
+        hints: vocab.hardWordHints(hard), // 难词就地化解提示（中文第一义 + 英文简释）
       };
       payload.vocabLevel = { score: lvl.score, cefr: lvl.cefr };
+      payload.wordLevel = vocab.wordLevel(dict.bnc, lvl.score); // 该词对你的难度
     }
   } else if (ecdict.isInstalled()) {
     payload.error = '本地词典未收录，尝试在线翻译';
@@ -107,6 +109,17 @@ async function lookupWord(word) {
       }
     } catch (e) {
       payload.error = payload.error || `在线翻译失败：${e.message}`;
+    }
+  }
+
+  // 无语境时：LLM 单独生成简单英语释义（覆盖「没复制句子」的查词场景）
+  if (!payload.simpleDef && !sentence) {
+    const cfg = config.load();
+    if (cfg.vocabLevel && cfg.vocabLevel.score && cfg.provider === 'llm' && cfg.providers.llm?.apiKey) {
+      try {
+        const sd = await translate.simpleDefinition(word);
+        if (sd) payload.simpleDef = sd.simpleDef;
+      } catch { /* 简单释义失败不影响主流程 */ }
     }
   }
 
