@@ -64,6 +64,15 @@ One click from Settings exports a tab-separated `.txt` (UTF-8, with `#separator:
 
 All translations are cached for **10 minutes** to avoid repeated requests.
 
+### 📊 Vocabulary self-test (personalized simple-English definitions)
+
+- **60 questions · ~2 minutes**: stratified sampling across 6 BNC frequency bands, with fake words mixed in for calibration (inspired by TestYourVocab's bucket estimation + LexTALE's real/fake-word method), fully offline
+- Result: estimated vocabulary size + CEFR level (A1-C2) + per-band accuracy
+- **Takes effect immediately**: lookups show more than Chinese — first a **simple English definition matched to your vocabulary level** (explaining new words with words you already know, instead of memorizing translations)
+  - **LLM mode**: wording is automatically constrained to your level (COBUILD-style one-sentence definition)
+  - **Offline mode**: WordNet definition shown, with words beyond your level marked as dotted highlights — click one to look it up
+- Keyboard shortcuts for fast answering (→/Space = know, ←/X = don't know); retake anytime
+
 ### 🎛️ More
 
 - **Copy-to-popup** (optional): copy anything with Ctrl+C and the popup appears automatically
@@ -110,6 +119,7 @@ npx electron-builder --win portable  # portable green build
 | **Review** | Tray → "Today's Review" → self-grade Forgot / Fuzzy / Known |
 | **Export to Anki** | Settings → Vocabulary → Export Anki |
 | **Take notes** | Word card → "My Notes" → save |
+| **Test your vocabulary** | Settings → General → "Vocabulary self-test" (60 questions; lookups then show level-matched English definitions) |
 | **Pin / close** | 📌 pins the card; `Esc` or ✕ closes it |
 
 > 💡 Tip: when you meet an unfamiliar word, copy the **whole sentence** first, then look up the word — over time this builds a personal corpus of words in their real contexts.
@@ -202,6 +212,7 @@ npx electron scripts/smoke-test.js   # core logic: db / SM-2 / Anki export / con
 npx electron scripts/gui-test.js     # GUI end-to-end: IPC / rendering / persistence
 npx electron scripts/uia-test.js     # UIA grabbing + resident PowerShell channel
 npx electron scripts/dl-test.js      # ECDICT download + lookup verification
+npx electron scripts/vocab-test.js   # vocabulary self-test: sampling / fake-word calibration / scoring / hard-word marking
 npx electron scripts/perf-test.js    # performance benchmark
 ```
 

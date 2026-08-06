@@ -21,5 +21,8 @@ contextBridge.exposeInMainWorld('tranen', {
   wordsRecent: () => ipcRenderer.invoke('words:recent'),
   wordsRemove: (word) => ipcRenderer.invoke('words:remove', word),
   wordsStats: () => ipcRenderer.invoke('words:stats'),
+  vocabStart: () => ipcRenderer.invoke('vocab:start'),
+  vocabFinish: (answers) => ipcRenderer.invoke('vocab:finish', answers),
+  vocabLevel: () => ipcRenderer.invoke('vocab:level'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

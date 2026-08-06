@@ -42,6 +42,34 @@
       </select></div>
       <div class="row"><button class="btn" id="save-general">保存</button><span class="msg" id="general-msg"></span></div>
     </div>
+    <div class="card">
+      <h3>📊 词汇量自测</h3>
+      <div id="vocab-status"></div>
+      <div id="vocab-test" class="hidden">
+        <div class="vocab-progress-row">
+          <span id="vocab-progress">第 1 / 60 题</span>
+          <div class="bar"><div id="vocab-bar"></div></div>
+        </div>
+        <div class="vocab-word" id="vocab-word">—</div>
+        <p class="hint hint-flat">这个词你认识吗？凭直觉快速判断，不要猜太久（混有伪词用于校准）。</p>
+        <div class="btn-row vocab-btns">
+          <button class="btn" id="vocab-known">✓ 认识</button>
+          <button class="btn ghost" id="vocab-unknown">✗ 不认识</button>
+        </div>
+        <span class="msg" id="vocab-msg"></span>
+      </div>
+      <div id="vocab-result" class="hidden">
+        <div class="vocab-score" id="vocab-score"></div>
+        <div class="vocab-sub" id="vocab-sub"></div>
+        <div id="vocab-buckets"></div>
+        <div class="btn-row"><button class="btn ghost" id="vocab-again">重新测试</button></div>
+      </div>
+      <div class="btn-row" id="vocab-actions">
+        <button class="btn" id="vocab-start">开始测试</button>
+        <button class="btn ghost hidden" id="vocab-quit">退出测试</button>
+      </div>
+      <p class="hint hint-flat">约 60 题 · 2 分钟。结果用于查词时生成「适合你词汇水平的简单英语释义」——用你会的词解释生词，而不是死记中文。</p>
+    </div>
   </div>
 
   <!-- 翻译源 -->

@@ -61,6 +61,7 @@ const DEFAULTS = {
   dict: {
     enabled: true,
   },
+  vocabLevel: null, // 词汇量自测结果 { score, cefr, buckets, fakeKnown, takenAt }，null=未测
 };
 
 let cache = null;

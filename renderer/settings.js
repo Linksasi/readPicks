@@ -187,4 +187,126 @@ async function refreshWords() {
 
 // 生词本刷新入口已合并进 tab 点击处理
 
-loadConfig().then(() => { refreshDict(); refreshWords(); });
+// ---------- 词汇量自测 ----------
+let vocabSession = null; // { words: [], answers: [], idx: 0 }
+
+async function refreshVocab() {
+  const lvl = await api.vocabLevel();
+  const box = document.getElementById('vocab-status');
+  document.getElementById('vocab-test').classList.add('hidden');
+  document.getElementById('vocab-result').classList.add('hidden');
+  document.getElementById('vocab-actions').classList.remove('hidden');
+  document.getElementById('vocab-quit').classList.add('hidden');
+  if (lvl && lvl.score) {
+    box.innerHTML =
+      `<div class="status-box ok">✅ 已测试：词汇量约 <b>${lvl.score}</b> 词（CEFR ${lvl.cefr}）` +
+      ` · ${new Date(lvl.takenAt).toLocaleDateString('zh-CN')} — 查词将按此水平生成英文释义</div>`;
+    document.getElementById('vocab-start').textContent = '重新测试';
+  } else {
+    box.innerHTML =
+      '<div class="status-box warn">⚠️ 尚未测试 — 测完后查词会显示「适合你词汇水平的简单英语释义」</div>';
+    document.getElementById('vocab-start').textContent = '开始测试';
+  }
+}
+
+function vocabAnswer(known) {
+  if (!vocabSession) return;
+  const s = vocabSession;
+  s.answers[s.idx] = known;
+  s.idx++;
+  if (s.idx >= s.words.length) {
+    vocabFinish();
+    return;
+  }
+  vocabShowWord();
+}
+
+function vocabShowWord() {
+  const s = vocabSession;
+  document.getElementById('vocab-word').textContent = s.words[s.idx];
+  document.getElementById('vocab-progress').textContent = `第 ${s.idx + 1} / ${s.words.length} 题`;
+  document.getElementById('vocab-bar').style.width = ((s.idx / s.words.length) * 100).toFixed(1) + '%';
+  const m = document.getElementById('vocab-msg');
+  if (m.textContent) { m.textContent = ''; m.className = 'msg'; }
+}
+
+async function vocabFinish() {
+  const s = vocabSession;
+  vocabSession = null;
+  document.getElementById('vocab-test').classList.add('hidden');
+  const res = await api.vocabFinish(s.answers);
+  if (!res.ok) {
+    document.getElementById('vocab-msg').textContent = '❌ ' + res.error;
+    refreshVocab();
+    return;
+  }
+  const r = res.result;
+  document.getElementById('vocab-score').innerHTML =
+    `词汇量约 <span class="cefr">${r.score}</span> 词 · CEFR ${r.cefr}`;
+  document.getElementById('vocab-sub').textContent =
+    `测试于 ${new Date(r.takenAt).toLocaleDateString('zh-CN')}` +
+    (r.fakeKnown ? ` · 误认伪词 ${r.fakeKnown} 个（已计入惩罚）` : ' · 无伪词误认，结果可信');
+  const box = document.getElementById('vocab-buckets');
+  box.innerHTML = '';
+  for (const b of r.buckets) {
+    const row = document.createElement('div');
+    row.className = 'vocab-bucket';
+    const rng = document.createElement('span');
+    rng.className = 'r';
+    rng.textContent = `词频 ${b.range}`;
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const fill = document.createElement('div');
+    fill.style.width = b.rate + '%';
+    bar.appendChild(fill);
+    const pct = document.createElement('span');
+    pct.className = 'p';
+    pct.textContent = b.rate + '%';
+    row.appendChild(rng); row.appendChild(bar); row.appendChild(pct);
+    box.appendChild(row);
+  }
+  document.getElementById('vocab-result').classList.remove('hidden');
+  document.getElementById('vocab-actions').classList.remove('hidden');
+  document.getElementById('vocab-start').textContent = '重新测试';
+  // 立即更新状态卡片
+  const st = document.getElementById('vocab-status');
+  st.innerHTML =
+    `<div class="status-box ok">✅ 已测试：词汇量约 <b>${r.score}</b> 词（CEFR ${r.cefr}） — 查词将按此水平生成英文释义</div>`;
+}
+
+document.getElementById('vocab-start').onclick = async () => {
+  const r = await api.vocabStart();
+  if (!r.ok) {
+    document.getElementById('vocab-msg').textContent = '❌ ' + r.error;
+    return;
+  }
+  vocabSession = { words: r.words, answers: new Array(r.total).fill(false), idx: 0 };
+  document.getElementById('vocab-actions').classList.add('hidden');
+  document.getElementById('vocab-result').classList.add('hidden');
+  document.getElementById('vocab-quit').classList.remove('hidden');
+  document.getElementById('vocab-test').classList.remove('hidden');
+  vocabShowWord();
+};
+
+document.getElementById('vocab-known').onclick = () => vocabAnswer(true);
+document.getElementById('vocab-unknown').onclick = () => vocabAnswer(false);
+document.getElementById('vocab-again').onclick = () =>
+  document.getElementById('vocab-start').click();
+document.getElementById('vocab-quit').onclick = () => {
+  vocabSession = null;
+  refreshVocab();
+};
+
+// 键盘快捷答题：→ / 空格 = 认识，← / X = 不认识
+document.addEventListener('keydown', (e) => {
+  if (!vocabSession) return;
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key.toLowerCase() === 'j') {
+    e.preventDefault();
+    vocabAnswer(true);
+  } else if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'x' || e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    vocabAnswer(false);
+  }
+});
+
+loadConfig().then(() => { refreshDict(); refreshWords(); refreshVocab(); });

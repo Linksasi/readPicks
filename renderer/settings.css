@@ -271,3 +271,67 @@ textarea { resize: vertical; }
   font-size: 13px;
 }
 .hidden { display: none !important; }
+
+/* ---------- 词汇量自测 ---------- */
+.hint-flat { margin-left: 0; }
+.vocab-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-bottom: 6px;
+}
+.vocab-progress-row .bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.vocab-progress-row .bar div {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width .15s;
+}
+.vocab-word {
+  font-size: 30px;
+  font-weight: 700;
+  text-align: center;
+  padding: 20px 0 8px;
+  letter-spacing: .5px;
+}
+.vocab-btns { justify-content: center; margin-top: 12px; }
+.vocab-btns .btn { min-width: 110px; padding: 10px 0; font-size: 14.5px; }
+.vocab-score {
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  padding: 10px 0 2px;
+}
+.vocab-score .cefr { color: var(--accent); }
+.vocab-sub { text-align: center; color: var(--muted); font-size: 12.5px; margin-bottom: 12px; }
+.vocab-bucket {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 5px 0;
+}
+.vocab-bucket .r { flex: 0 0 96px; }
+.vocab-bucket .bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.vocab-bucket .bar div {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  border-radius: 999px;
+}
+.vocab-bucket .p { flex: 0 0 44px; text-align: right; }

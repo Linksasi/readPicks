@@ -6,6 +6,7 @@ const config = require('./config');
 const db = require('./db');
 const ecdict = require('./ecdict');
 const translate = require('./translate');
+const vocab = require('./vocabtest');
 const hotkey = require('./hotkey');
 const clipboardWatch = require('./clipboard-watch');
 const context = require('./context');
@@ -40,6 +41,9 @@ async function lookupWord(word) {
     oxford: 0,
     dictInstalled: ecdict.isInstalled(),
     matched: false,
+    enDefinition: null,   // { text, hard: [word] } 按用户词汇水平标注的英英释义（测过词汇量才有）
+    simpleDef: null,      // LLM 用简单英语生成的本句释义
+    vocabLevel: null,     // 当前词汇量 { score, cefr }（提示用）
     context: null,
     contextCloze: null,
     sentenceTranslation: null,
@@ -58,6 +62,17 @@ async function lookupWord(word) {
     payload.tags = dict.tags;
     payload.collins = dict.collins;
     payload.oxford = dict.oxford;
+    // 已测词汇量 → 附英英释义并按用户水平标注难词
+    const lvl = vocab.currentLevel();
+    if (lvl && lvl.score && dict.definition) {
+      const { maxBnc } = vocab.levelInfo(lvl.score);
+      const { hard } = vocab.annotateHardWords(dict.definition, maxBnc);
+      payload.enDefinition = {
+        text: dict.definition.length > 280 ? dict.definition.slice(0, 280) + '…' : dict.definition,
+        hard,
+      };
+      payload.vocabLevel = { score: lvl.score, cefr: lvl.cefr };
+    }
   } else if (ecdict.isInstalled()) {
     payload.error = '本地词典未收录，尝试在线翻译';
   }
@@ -75,6 +90,7 @@ async function lookupWord(word) {
       payload.explain = ctx.explain;
       payload.usage = ctx.usage;
       payload.words = ctx.words || [];
+      payload.simpleDef = ctx.simpleDef || null;
       if (ctx.word_in_sentence && !definition) definition = ctx.word_in_sentence;
       if (ctx.sentence_translation) payload.source = ctx.source || 'translate';
     } catch (e) {
@@ -208,6 +224,11 @@ function registerIpc() {
     clipboardWatch.start(handleQuery);
     return cfg;
   });
+
+  // 词汇量自测
+  ipcMain.handle('vocab:start', () => vocab.startTest());
+  ipcMain.handle('vocab:finish', (_e, answers) => vocab.finishTest(answers));
+  ipcMain.handle('vocab:level', () => vocab.currentLevel());
 
   ipcMain.handle('review:due', () => db.dueWords(20).map((w) => ({
     word: w.word, phonetic: w.phonetic, definition: w.definition,

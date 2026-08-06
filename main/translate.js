@@ -55,7 +55,7 @@ async function lookupInContext(word, sentence, providerName) {
   if (name !== 'llm' || !p?.apiKey) {
     // 非 LLM：只做整句翻译
     const { translation } = await translateSentence(sentence, name);
-    return { sentence_translation: translation, word_in_sentence: null, explain: null, usage: null, words: [], source: 'translate' };
+    return { sentence_translation: translation, word_in_sentence: null, explain: null, usage: null, words: [], simpleDef: null, source: 'translate' };
   }
   const res = await llm(word + '\n' + sentence, p, true);
   let data = {};
@@ -71,6 +71,7 @@ async function lookupInContext(word, sentence, providerName) {
     explain: data.explain || null,
     usage: data.usage || null,
     words: Array.isArray(data.words) ? data.words : [],
+    simpleDef: data.simple_def || data.simpleDef || null,
     source: 'llm',
   };
 }
@@ -136,10 +137,22 @@ async function deepl(text, p) {
 async function llm(text, p, wantJson = false) {
   if (!p.apiKey) throw new Error('LLM 需要 apiKey（设置中填写）');
   const base = String(p.baseUrl || '').replace(/\/+$/, '');
+  // 已测词汇量 → 注入用词难度约束（只影响解释类任务，不影响整句翻译）
+  let sys = p.systemPrompt || '你是英语学习助手，输出 JSON。';
+  try {
+    const vl = load().vocabLevel;
+    if (vl && vl.score) {
+      sys += `\n\n【重要】用户的英语词汇量约为 ${vl.score}（CEFR ${vl.cefr}）。` +
+        '请在解释、说明和 simple_def 中使用不超过该水平的简单英语词汇——' +
+        '宁可换更简单的说法，不要使用生僻词；释义应像柯林斯词典那样用一句简单的英语（COBUILD 风格）写。' +
+        '如果任务包含查词，请在返回 JSON 中额外提供 simple_def 字段：' +
+        '用简单英语、一句话解释这个词在本句语境中的含义（不翻译成中文）。';
+    }
+  } catch { /* 配置读取失败则不加约束 */ }
   const body = {
     model: p.model || 'deepseek-chat',
     messages: [
-      { role: 'system', content: p.systemPrompt || '你是英语学习助手，输出 JSON。' },
+      { role: 'system', content: sys },
       { role: 'user', content: text },
     ],
     temperature: 0.3,

@@ -60,6 +60,20 @@ function renderWord(p) {
     meta.textContent = p.dictInstalled ? '' : '💡 设置中可一键安装离线词典';
   }
 
+  // 英英释义（测过词汇量后出现）：LLM 简单释义优先，否则 WordNet 释义 + 难词标注
+  const enSec = document.getElementById('en-def-section');
+  const enDef = document.getElementById('en-def');
+  if (p.simpleDef) {
+    enSec.classList.remove('hidden');
+    enDef.innerHTML = escapeHtml(p.simpleDef);
+  } else if (p.enDefinition && p.enDefinition.text) {
+    enSec.classList.remove('hidden');
+    enDef.innerHTML = renderEnDef(p.enDefinition.text, p.enDefinition.hard || []);
+  } else {
+    enSec.classList.add('hidden');
+    enDef.innerHTML = '';
+  }
+
   // 语境区
   const ctxSec = document.getElementById('context-section');
   if (p.context) {
@@ -170,6 +184,26 @@ function escapeHtml(s) {
 function highlightWord(text, word) {
   const re = new RegExp(`\\b(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'i');
   return escapeHtml(text).replace(re, '<mark>$1</mark>');
+}
+
+/** 渲染英英释义：超出用户词汇水平的词 → 可点击的虚线高亮（点击再查） */
+function renderEnDef(text, hardWords) {
+  const hs = new Set(hardWords.map((w) => String(w).toLowerCase()));
+  const parts = String(text).split(/([A-Za-z][A-Za-z'-]*)/g);
+  return parts
+    .map((part) => {
+      const isWord = /^[A-Za-z]/.test(part);
+      if (isWord && hs.has(part.toLowerCase())) {
+        const b = document.createElement('button');
+        b.className = 'hard-word';
+        b.textContent = part;
+        b.title = '这个词超出你的词汇水平，点击查看';
+        b.onclick = () => api.query(part);
+        return b.outerHTML;
+      }
+      return isWord ? part : escapeHtml(part);
+    })
+    .join('');
 }
 function fmtTime(ts) {
   if (!ts) return '';
