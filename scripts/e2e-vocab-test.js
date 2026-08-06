@@ -68,7 +68,8 @@ app.whenReady().then(async () => {
       senseRows: document.querySelectorAll('.en-sense').length,
       badge: document.getElementById('badges').textContent,
       enBeforeDefs: (document.getElementById('en-def-section').compareDocumentPosition(document.getElementById('defs')) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
-      defsMuted: document.getElementById('defs').classList.contains('muted')
+      defsMuted: document.getElementById('defs').classList.contains('muted'),
+      defsCollapsed: !document.getElementById('defs-details').hasAttribute('open')
     })`);
     check('渲染: 英英释义区块可见', dom1.enSec === true);
     check('渲染: 义项按行渲染', dom1.senseRows === p1.enDefinition.senses.length, `rows=${dom1.senseRows}`);
@@ -76,6 +77,7 @@ app.whenReady().then(async () => {
     check('渲染: 徽章显示"远超你水平"', dom1.badge.includes('远超你水平'), dom1.badge);
     check('排版: 英文释义在中文释义之上（理念：英英优先）', dom1.enBeforeDefs === true);
     check('排版: 中文释义已弱化（muted）', dom1.defsMuted === true);
+    check('排版: 中文释义默认折叠（有词汇量时）', dom1.defsCollapsed === true);
 
     // 2. 点击第一个难词 → 就地浮层
     const tip = await popup.webContents.executeJavaScript(`(async () => {

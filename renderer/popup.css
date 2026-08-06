@@ -137,6 +137,26 @@ header {
   transform: translateY(-1px);
 }
 
+/* 中文释义折叠区（测过词汇量后默认折叠：中文是兜底，需要时再打开） */
+.defs-details { margin-top: 6px; }
+.defs-details summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: color .12s;
+}
+.defs-details summary::-webkit-details-marker { display: none; }
+.defs-details summary::before { content: '▸'; font-size: 10px; transition: transform .12s; }
+.defs-details[open] summary::before { transform: rotate(90deg); }
+.defs-details summary:hover { color: var(--fg); }
+
 /* 中文释义弱化（测过词汇量后：英文是主菜，中文是兜底） */
 .defs.muted { color: var(--muted); }
 .defs.muted .pos { color: var(--muted); }

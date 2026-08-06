@@ -41,6 +41,11 @@ app.whenReady().then(async () => {
     })`);
     check('word render', wordDom.visible && wordDom.word === 'apple', JSON.stringify(wordDom));
     check('word defs', (payload.defs || []).length > 0, `defs=${payload.defs.length}`);
+    const defsOpen = await popup.webContents.executeJavaScript(
+      `document.getElementById('defs-details').hasAttribute('open')`);
+    // 折叠状态应与词汇量状态一致：测过（有英英释义）→ 折叠；未测 → 展开
+    check('word defs 折叠状态与词汇量一致', defsOpen === !payload.vocabLevel,
+      `open=${defsOpen}, vocabLevel=${!!payload.vocabLevel}`);
 
     // 2. 句子查询
     await popup.webContents.executeJavaScript(

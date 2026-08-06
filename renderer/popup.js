@@ -57,6 +57,17 @@ function renderWord(p) {
   const defs = document.getElementById('defs');
   defs.innerHTML = '';
   defs.classList.toggle('muted', !!p.vocabLevel); // 测过词汇量 → 中文释义弱化为对照兜底
+  const defsDetails = document.getElementById('defs-details');
+  const defsSummary = document.getElementById('defs-summary');
+  if (p.defs && p.defs.length) {
+    // 测过词汇量（有英英释义）→ 中文默认折叠，点击展开；未测 → 默认展开
+    if (p.vocabLevel) defsDetails.removeAttribute('open');
+    else defsDetails.setAttribute('open', '');
+    defsSummary.textContent = `中文释义（${p.defs.length}）`;
+  } else {
+    defsDetails.removeAttribute('open');
+    defsSummary.textContent = '中文释义';
+  }
   if (p.defs && p.defs.length) {
     for (const d of p.defs) {
       const li = document.createElement('li');
