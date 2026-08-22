@@ -107,7 +107,7 @@ async function grabViaUia() {
     const ps1 = ensureUiaPs1();
     const out = await sendCommand(
       `[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; . '${ps1}'; Get-TranenSelection | ConvertTo-Json -Compress`,
-      2000
+      1200 // UIA 卡住时快速放弃，走剪贴板回退，避免热键按下无响应
     );
     const line = String(out).trim().split('\n').filter(Boolean).pop() || '{}';
     const data = JSON.parse(line);

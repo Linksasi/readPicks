@@ -3,17 +3,24 @@ const api = window.tranen;
 let pinned = false;
 let leaveTimer = null;
 let currentWord = null;
+let queryBusy = false; // 查询进行中：不自动隐藏（等结果时窗口不能消失）
 
 // ---------- 渲染 ----------
 
 api.onLookupResult((p) => {
   if (p.loading) {
-    // 查询中：显示加载态
+    // 查询中：显示加载态；期间禁止自动隐藏
+    queryBusy = true;
+    api.setBusy(true);
     document.getElementById('word-view').classList.add('hidden');
     document.getElementById('sentence-view').classList.add('hidden');
     document.getElementById('loading').classList.remove('hidden');
     return;
   }
+  // 结果（含错误）到达：恢复自动隐藏
+  queryBusy = false;
+  api.setBusy(false);
+  clearTimeout(leaveTimer);
   document.getElementById('loading').classList.add('hidden');
   hideError();
   if (p.kind === 'word') renderWord(p);
@@ -330,7 +337,7 @@ function speak(type) {
 
 document.getElementById('speak-en').onclick = () => speak(1);
 document.getElementById('speak-us').onclick = () => speak(2);
-document.getElementById('close').onclick = () => api.hidePopup();
+document.getElementById('close').onclick = () => api.hidePopupForce();
 document.getElementById('settings').onclick = () => api.openSettings();
 document.getElementById('s-copy').onclick = async () => {
   const t = document.getElementById('s-trans').textContent;
@@ -354,11 +361,12 @@ document.getElementById('note-save').onclick = async () => {
 };
 
 // 键盘：Esc 关闭（点击窗口获得焦点后生效）
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') api.hidePopup(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') api.hidePopupForce(); });
 
-// 鼠标移出窗口 → 未钉住则 1.2s 后自动隐藏（移回取消）
+// 鼠标移出窗口 → 未钉住且非查询中则 1.2s 后自动隐藏（移回取消）。
+// 走 hidePopup（受主进程拖拽/查询保护）：拖拽时鼠标甩出窗口不会导致窗口凭空消失。
 document.body.addEventListener('mouseleave', () => {
-  if (pinned) return;
+  if (pinned || queryBusy) return;
   leaveTimer = setTimeout(() => api.hidePopup(), 1200);
 });
 document.body.addEventListener('mouseenter', () => clearTimeout(leaveTimer));

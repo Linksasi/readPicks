@@ -199,12 +199,15 @@ async function refreshVocab() {
   document.getElementById('vocab-quit').classList.add('hidden');
   if (lvl && lvl.score) {
     box.innerHTML =
-      `<div class="status-box ok">✅ 已测试：词汇量约 <b>${lvl.score}</b> 词（CEFR ${lvl.cefr}）` +
-      ` · ${new Date(lvl.takenAt).toLocaleDateString('zh-CN')} — 查词将按此水平生成英文释义</div>`;
+      `<div class="status-box ok"><span class="sb-icon">✅</span><div class="sb-body">` +
+      `<div class="sb-main">已测试：词汇量约 <b>${lvl.score}</b> 词（CEFR ${lvl.cefr}）· ${new Date(lvl.takenAt).toLocaleDateString('zh-CN')}</div>` +
+      `<div class="sb-sub">查词将按此水平生成英文释义</div></div></div>`;
     document.getElementById('vocab-start').textContent = '重新测试';
   } else {
     box.innerHTML =
-      '<div class="status-box warn">⚠️ 尚未测试 — 测完后查词会显示「适合你词汇水平的简单英语释义」</div>';
+      '<div class="status-box warn"><span class="sb-icon">⚠️</span><div class="sb-body">' +
+      '<div class="sb-main">尚未测试</div>' +
+      '<div class="sb-sub">测完后查词会显示「适合你词汇水平的简单英语释义」</div></div></div>';
     document.getElementById('vocab-start').textContent = '开始测试';
   }
 }
@@ -271,7 +274,9 @@ async function vocabFinish() {
   // 立即更新状态卡片
   const st = document.getElementById('vocab-status');
   st.innerHTML =
-    `<div class="status-box ok">✅ 已测试：词汇量约 <b>${r.score}</b> 词（CEFR ${r.cefr}） — 查词将按此水平生成英文释义</div>`;
+    `<div class="status-box ok"><span class="sb-icon">✅</span><div class="sb-body">` +
+    `<div class="sb-main">已测试：词汇量约 <b>${r.score}</b> 词（CEFR ${r.cefr}）</div>` +
+    `<div class="sb-sub">查词将按此水平生成英文释义</div></div></div>`;
 }
 
 document.getElementById('vocab-start').onclick = async () => {
