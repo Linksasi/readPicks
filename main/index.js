@@ -17,16 +17,57 @@ let tray = null;
 
 // ---------- 查询管线 ----------
 
+let querySeq = 0; // 查询序号：慢查询结果过期后丢弃，避免旧结果覆盖新查询
+
 async function handleQuery(raw) {
-  const text = hotkey.cleanText(raw);
-  if (!text) return null;
-  context.push(text);
-  const kind = hotkey.classify(text);
-  // 立即弹出「查询中」窗口，查询在后台进行（感知零延迟）
-  windowMgr.showPopup({ kind, raw: text, loading: true });
-  const payload = kind === 'word' ? await lookupWord(text) : await translateText(text);
-  windowMgr.showPopup(payload);
-  return payload;
+  const seq = ++querySeq;
+  try {
+    const text = hotkey.cleanText(raw);
+    if (!text) return null;
+    const kind = hotkey.classify(text);
+    // 单词/短语统一小写（"Apple"/"apple" 合并为一条记录；专名显示以语境句为准）
+    const query = kind === 'word' ? text.toLowerCase() : text;
+    context.push(text); // 原文入语境历史（大小写敏感匹配不依赖原文）
+    // 立即弹出「查询中」窗口，查询在后台进行（感知零延迟）
+    windowMgr.showPopup({ kind, raw: query, loading: true });
+    const payload = kind === 'word' ? await lookupWord(query) : await translateText(query);
+    if (seq !== querySeq) return payload; // 已有更新的查询，丢弃过期结果
+    windowMgr.showPopup(payload);
+    return payload;
+  } catch (e) {
+    console.error('[query] 失败:', e);
+    const err = {
+      kind: 'word',
+      word: String(raw || ''),
+      raw: String(raw || ''),
+      error: e.message || String(e),
+      defs: [],
+      tags: [],
+      words: [],
+      dictInstalled: ecdict.isInstalled(),
+      matched: false,
+      history: [],
+    };
+    if (seq === querySeq) windowMgr.showPopup(err);
+    return err;
+  }
+}
+
+/**
+ * 英英释义构建（查词/复习共用）：WordNet 义项拆分 + 按用户词汇水平标注难词 + 就地化解提示。
+ * 未测词汇量或词典无英文释义时返回 null。
+ */
+function buildEnDefinition(dict) {
+  const lvl = vocab.currentLevel();
+  if (!lvl || !lvl.score || !dict || !dict.definition) return null;
+  const { maxBnc } = vocab.levelInfo(lvl.score);
+  const { hard } = vocab.annotateHardWords(dict.definition, maxBnc);
+  return {
+    senses: ecdict.parseDefinition(dict.definition),
+    hard,
+    hints: vocab.hardWordHints(hard),
+    vocabLevel: { score: lvl.score, cefr: lvl.cefr },
+  };
 }
 
 async function lookupWord(word) {
@@ -63,17 +104,11 @@ async function lookupWord(word) {
     payload.collins = dict.collins;
     payload.oxford = dict.oxford;
     // 已测词汇量 → 附英英释义并按用户水平标注难词
-    const lvl = vocab.currentLevel();
-    if (lvl && lvl.score && dict.definition) {
-      const { maxBnc } = vocab.levelInfo(lvl.score);
-      const { hard } = vocab.annotateHardWords(dict.definition, maxBnc);
-      payload.enDefinition = {
-        senses: ecdict.parseDefinition(dict.definition), // 拆分后的义项 [{pos, text}]
-        hard,
-        hints: vocab.hardWordHints(hard), // 难词就地化解提示（中文第一义 + 英文简释）
-      };
-      payload.vocabLevel = { score: lvl.score, cefr: lvl.cefr };
-      payload.wordLevel = vocab.wordLevel(dict.bnc, lvl.score); // 该词对你的难度
+    const en = buildEnDefinition(dict);
+    if (en) {
+      payload.enDefinition = { senses: en.senses, hard: en.hard, hints: en.hints };
+      payload.vocabLevel = en.vocabLevel;
+      payload.wordLevel = vocab.wordLevel(dict.bnc, en.vocabLevel.score); // 该词对你的难度
     }
   } else if (ecdict.isInstalled()) {
     payload.error = '本地词典未收录，尝试在线翻译';
@@ -133,6 +168,7 @@ async function lookupWord(word) {
       contextCloze: payload.contextCloze || undefined,
       sentenceTranslation: payload.sentenceTranslation || undefined,
       wordInSentence: payload.wordInSentence || undefined,
+      simpleDef: payload.simpleDef || undefined, // 简单释义持久化，复习卡复用
       source: payload.source,
     });
     payload.queryCount = rec.queryCount;
@@ -164,17 +200,46 @@ async function translateText(sentence) {
 
 // ---------- IPC ----------
 
+/** 只信任来自本应用 renderer 页面（file://.../renderer/）的调用，防止 XSS 或其他窗口滥用主进程能力 */
+function isTrustedSender(event) {
+  let url = '';
+  try { url = event?.senderFrame?.url || ''; } catch { url = ''; }
+  return url.startsWith('file://') && url.includes('/renderer/');
+}
+
+function handleIpc(channel, fn) {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) {
+      console.warn('[ipc] 拒绝不受信调用方:', channel);
+      return null;
+    }
+    return fn(event, ...args);
+  });
+}
+
+function onIpc(channel, fn) {
+  ipcMain.on(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) {
+      console.warn('[ipc] 拒绝不受信调用方:', channel);
+      return;
+    }
+    fn(event, ...args);
+  });
+}
+
 function registerIpc() {
-  ipcMain.handle('query', (_e, text) => handleQuery(text));
+  handleIpc('query', (_e, text) => handleQuery(text));
 
-  ipcMain.on('popup:hide', () => windowMgr.hidePopup());
-  ipcMain.on('popup:pin', (_e, v) => windowMgr.setPinned(!!v));
+  onIpc('popup:hide', () => windowMgr.hidePopup());
+  onIpc('popup:hide-force', () => windowMgr.forceHidePopup());
+  onIpc('popup:pin', (_e, v) => windowMgr.setPinned(!!v));
+  onIpc('popup:busy', (_e, v) => windowMgr.setBusy(!!v));
 
-  ipcMain.handle('open-settings', () => windowMgr.createSettings());
+  handleIpc('open-settings', () => windowMgr.createSettings());
 
-  ipcMain.handle('note:set', (_e, word, note) => { db.setNote(word, note); return true; });
+  handleIpc('note:set', (_e, word, note) => { db.setNote(word, note); return true; });
 
-  ipcMain.handle('export-anki', async () => {
+  handleIpc('export-anki', async () => {
     const { canceled, filePath } = await dialog.showSaveDialog({
       title: '导出 Anki 生词本',
       defaultPath: path.join(app.getPath('documents'), 'ReadPicks-生词本.txt'),
@@ -185,7 +250,7 @@ function registerIpc() {
     return { ok: true, count, filePath };
   });
 
-  ipcMain.handle('dict:status', () => {
+  handleIpc('dict:status', () => {
     const p = ecdict.DB_PATH();
     return {
       installed: ecdict.isInstalled(),
@@ -195,7 +260,7 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('dict:download', async () => {
+  handleIpc('dict:download', async () => {
     const win = windowMgr.getSettingsWindow ? windowMgr.getSettingsWindow() : null;
     const emit = (p) => { if (win && !win.isDestroyed()) win.webContents.send('dict:progress', p); };
     try {
@@ -209,7 +274,7 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('dict:install-file', async () => {
+  handleIpc('dict:install-file', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: '选择 ECDICT 词典压缩包（ecdict-sqlite-*.zip）',
       properties: ['openFile'],
@@ -229,8 +294,8 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('config:get', () => config.load());
-  ipcMain.handle('config:set', (_e, patch) => {
+  handleIpc('config:get', () => config.load());
+  handleIpc('config:set', (_e, patch) => {
     const cfg = config.update(patch);
     hotkey.register(handleQuery, () =>
       windowMgr.showPopup({ kind: 'unknown', raw: '', loading: true })); // 热键热更新
@@ -239,25 +304,36 @@ function registerIpc() {
   });
 
   // 词汇量自测
-  ipcMain.handle('vocab:start', () => vocab.startTest());
-  ipcMain.handle('vocab:finish', (_e, answers) => vocab.finishTest(answers));
-  ipcMain.handle('vocab:level', () => vocab.currentLevel());
+  handleIpc('vocab:start', () => vocab.startTest());
+  handleIpc('vocab:finish', (_e, answers) => vocab.finishTest(answers));
+  handleIpc('vocab:level', () => vocab.currentLevel());
 
-  ipcMain.handle('review:due', () => db.dueWords(20).map((w) => ({
-    word: w.word, phonetic: w.phonetic, definition: w.definition,
-    note: w.note, history: db.getHistory(w.word, 1)[0] || null,
-  })));
-  ipcMain.handle('review:answer', (_e, word, grade) => db.reviewWord(word, grade));
-  ipcMain.handle('review:count', () => db.dueCount());
+  handleIpc('review:due', () => {
+    const words = db.dueWords(20);
+    const ctxs = db.getRecentContexts(words.map((w) => w.word));
+    // 复习卡同样贯彻理念：附英英释义（本地 SQLite 同步查询，毫秒级）+ 持久化的 LLM 简单释义
+    return words.map((w) => {
+      const ctx = ctxs.get(w.word);
+      const en = buildEnDefinition(ecdict.lookup(w.word));
+      return {
+        word: w.word, phonetic: w.phonetic, definition: w.definition,
+        note: w.note, history: ctx ? [ctx] : null,
+        enDefinition: en ? { senses: en.senses, hard: en.hard, hints: en.hints } : null,
+        simpleDef: (ctx && ctx.simple_def) || null,
+      };
+    });
+  });
+  handleIpc('review:answer', (_e, word, grade) => db.reviewWord(word, grade));
+  handleIpc('review:count', () => db.dueCount());
 
-  ipcMain.handle('open-external', (_e, url) => {
+  handleIpc('open-external', (_e, url) => {
     if (typeof url === 'string' && /^https?:\/\//.test(url)) require('electron').shell.openExternal(url);
   });
 
-  ipcMain.handle('words:list', () => db.allWords(2000));
-  ipcMain.handle('words:recent', () => db.recentWords(12));
-  ipcMain.handle('words:remove', (_e, word) => db.removeWord(word));
-  ipcMain.handle('words:stats', () => ({ total: db.stats(), due: db.dueCount() }));
+  handleIpc('words:list', () => db.allWords(2000));
+  handleIpc('words:recent', () => db.recentWords(12));
+  handleIpc('words:remove', (_e, word) => db.removeWord(word));
+  handleIpc('words:stats', () => ({ total: db.stats(), due: db.dueCount() }));
 }
 
 // ---------- 托盘 ----------

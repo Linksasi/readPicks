@@ -88,6 +88,97 @@ app.whenReady().then(async () => {
     const due = await popup.webContents.executeJavaScript(`window.tranen.reviewCount()`, true);
     console.log('INFO due count =', due);
 
+    // 4.2 复习窗口全链路（理念对齐断言）：
+    //     直连 SQLite 种入到期词「reviewflow」（带语境挖空 + LLM 简单释义），验证
+    //     正面挖空 / 外链样式生效(CSP修复) / 背面英文在上中文muted / 键盘快捷键 / 忘记重排队
+    const Database = require('better-sqlite3');
+    const pathMod = require('path');
+    const configMod = require('../main/config');
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const rawDb = new Database(pathMod.join(configMod.getDataDir(), 'words.db'));
+    rawDb.prepare('DELETE FROM words WHERE word = ?').run('reviewflow');
+    rawDb.prepare(`INSERT INTO words (word, phonetic, definition, first_seen, last_seen, query_count)
+                   VALUES ('reviewflow', '', 'n. 复习；回顾', ?, ?, 1)`)
+      .run(Date.now() - 3 * DAY_MS, Date.now());
+    rawDb.prepare(`INSERT INTO queries
+                   (word, context, context_cloze, sentence_translation, word_in_sentence, source, created_at, simple_def)
+                   VALUES ('reviewflow',
+                           'Please review your notes before the exam.',
+                           'Please {{c1::review}} your notes before the exam.',
+                           '考试前请复习你的笔记。', 'v. 复习', 'llm', ?,
+                           'to look at something again carefully')`)
+      .run(Date.now() - DAY_MS);
+    rawDb.close();
+
+    const reviewWin = windowMgr.createReview();
+    await new Promise((res) => reviewWin.webContents.once('did-finish-load', res));
+    await sleep(700); // 等 load()/render()
+
+    // 队列里可能混有真实到期词：把测试词轮换到当前位（只动内存顺序，不碰真实词 SM-2）
+    const rotated = await reviewWin.webContents.executeJavaScript(`(() => {
+      const i = queue.findIndex((w) => w.word === 'reviewflow');
+      if (i < 0) return false;
+      const arr = queue.splice(i, 1);
+      queue.splice(idx, 0, arr[0]);
+      render();
+      return true;
+    })()`, true);
+    check('review 队列包含测试词', rotated === true, `total=${await reviewWin.webContents.executeJavaScript('queue.length', true)}`);
+
+    const frontDom = await reviewWin.webContents.executeJavaScript(`({
+      progress: document.getElementById('progress').textContent,
+      frontVisible: !document.getElementById('front').classList.contains('hidden'),
+      frontBlank: !!document.querySelector('#front .blank'),
+      cardBorder: getComputedStyle(document.getElementById('card')).borderTopWidth,
+      cardBorderStyle: getComputedStyle(document.getElementById('card')).borderTopStyle,
+    })`, true);
+    check('review 正面挖空渲染', frontDom.frontVisible && frontDom.frontBlank, JSON.stringify(frontDom));
+    // DPI 缩放下 1px 计算值可能是小数（如 150% → 0.666667px），用「有实线边框」证明外链 CSS 生效
+    check('review 外链样式表生效（CSP 修复）',
+      frontDom.cardBorder !== '0px' && frontDom.cardBorderStyle === 'solid',
+      `border=${frontDom.cardBorder} ${frontDom.cardBorderStyle}`);
+
+    // 空格键翻面 → 背面：simple-def 在上、中文 muted 在下（理念：英文在上，中文兜底）
+    const backDom = await reviewWin.webContents.executeJavaScript(`(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      const sd = document.querySelector('#back .simple-def');
+      const zd = document.querySelector('#back .back-def');
+      return {
+        backShown: !document.getElementById('back').classList.contains('hidden'),
+        word: (document.querySelector('#back .word') || {}).textContent || '',
+        simpleDefText: sd ? sd.textContent : null,
+        zhText: zd ? zd.textContent : null,
+        zhMuted: !!(zd && zd.classList.contains('muted')),
+        enAboveZh: !!(sd && zd && (sd.compareDocumentPosition(zd) & Node.DOCUMENT_POSITION_FOLLOWING)),
+      };
+    })()`, true);
+    check('review 空格翻面', backDom.backShown === true);
+    check('review 背面单词渲染', backDom.word === 'reviewflow', backDom.word);
+    check('review 英文简单释义渲染', backDom.simpleDefText === 'to look at something again carefully', String(backDom.simpleDefText));
+    check('理念:复习卡英文区在中文之上', backDom.enAboveZh === true, JSON.stringify(backDom));
+    check('理念:复习卡中文弱化(muted)', backDom.zhMuted === true, 'zh=' + backDom.zhText);
+
+    // 键盘 1 = 忘记：SM-2 即时更新 + 词被塞回队列尾部（当次重现）
+    await reviewWin.webContents.executeJavaScript(`(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300)); // 等 async answer() 走完 IPC
+    })()`, true);
+    const rfState = await reviewWin.webContents.executeJavaScript(`({
+      total: queue.length,
+      idx,
+      rfCount: queue.filter((w) => w.word === 'reviewflow').length,
+    })`, true);
+    check('review 忘记重排队（会话内重现）', rfState.rfCount >= 2 && rfState.idx >= 1, JSON.stringify(rfState));
+    const rfSm2 = db.getWord('reviewflow');
+    check('review SM-2 忘记分支落库',
+      rfSm2 && rfSm2.repetitions === 0 && rfSm2.interval === 1 && rfSm2.due_date > Date.now(),
+      JSON.stringify({ rep: rfSm2.repetitions, ivl: rfSm2.interval }));
+
+    // 收尾：清掉测试词（words+queries），关闭复习窗
+    db.removeWord('reviewflow');
+    reviewWin.close();
+
+
     // 4.5 最近查询入口
     const recent = await popup.webContents.executeJavaScript(`window.tranen.wordsRecent()`, true);
     check('recent words', Array.isArray(recent) && recent.length >= 1, JSON.stringify(recent.map((w) => w.word).slice(0, 3)));

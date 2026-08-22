@@ -28,6 +28,36 @@ app.whenReady().then(async () => {
     console.log('PASS db: count=%d (expect 2), history=%d (expect 1)', r2.queryCount, r2.history.length);
     if (r2.queryCount !== 2) throw new Error('query_count 未 +1');
 
+    // 1.5 增量迁移：queries.simple_def 列存在（旧库自动补列）
+    const rawDb = require('better-sqlite3')(path.join(config.getDataDir(), 'words.db'));
+    const qcols = rawDb.prepare('PRAGMA table_info(queries)').all().map((c) => c.name);
+    rawDb.close();
+    if (!qcols.includes('simple_def')) throw new Error('queries.simple_def 列缺失（增量迁移未执行）');
+    console.log('PASS migrate: queries.simple_def 列存在');
+
+    // 1.6 simpleDef 持久化（复习卡复用 LLM 简单释义）
+    db.removeWord('pear'); // 清理残留
+    db.recordLookup({
+      word: 'pear', phonetic: '/peə/', definition: 'n. 梨',
+      context: 'She peeled a ripe pear.', contextCloze: 'She peeled a ripe {{c1::pear}}.',
+      sentenceTranslation: '她削了一只熟梨。', wordInSentence: 'n. 梨',
+      simpleDef: 'a sweet juicy fruit', source: 'llm',
+    });
+    const pearCtxRow = db.getHistory('pear').find((h) => h.context_cloze);
+    if (!pearCtxRow || pearCtxRow.simple_def !== 'a sweet juicy fruit') {
+      throw new Error(`simple_def 未持久化: ${JSON.stringify(pearCtxRow)}`);
+    }
+    console.log('PASS db: simple_def 已持久化');
+
+    // 1.7 语境优选：最新一条无语境时，应回捞历史带语境记录（语境永远在场）
+    db.recordLookup({ word: 'pear', definition: 'n. 梨' }); // 再次查询，未复制句子
+    const pearBest = db.getRecentContexts(['pear']).get('pear');
+    if (!pearBest || !String(pearBest.context_cloze || '').includes('{{c1::pear}}')) {
+      throw new Error(`getRecentContexts 未优先带语境记录: ${JSON.stringify(pearBest)}`);
+    }
+    console.log('PASS db: 语境优选（新无语境记录不覆盖旧语境）');
+    db.removeWord('pear'); // 清理，不污染真实生词本
+
     // 2. SM-2 复习
     db.reviewWord('apple', 3);
     const wAfter = db.getWord('apple');
