@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<title>拾词 ReadPicks</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+  <!-- 配对页（未配对时显示） -->
+  <div id="page-pair" class="page hidden">
+    <div class="pair-hero">
+      <div class="pair-logo">📖</div>
+      <div class="pair-title">拾词</div>
+      <div class="pair-sub">连接电脑端，同步生词本与复习进度</div>
+    </div>
+    <div class="pair-form">
+      <label class="pair-label">粘贴电脑端设置页生成的配对链接</label>
+      <input type="text" id="pair-input" placeholder="http://192.168.x.x:9723/app/?t=…" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button class="btn primary" id="pair-btn">配对并同步</button>
+      <p class="pair-hint">电脑与手机需连同一 Wi-Fi。链接在 PC 端「设置 → 同步 → 显示配对二维码」生成。</p>
+      <p class="msg" id="pair-msg"></p>
+    </div>
+  </div>
+
+  <!-- 主页面 -->
+  <div id="page-main" class="page hidden">
+    <div class="top">
+      <span id="tab-title">今日复习</span>
+      <button class="sync-btn" id="sync-now">⟳ 同步</button>
+    </div>
+    <p class="sync-line" id="sync-line"></p>
+
+    <!-- 复习 -->
+    <div id="tab-review" class="tabpane">
+      <div id="card" class="card hidden">
+        <div id="front" class="front"></div>
+        <div id="back" class="hidden"></div>
+      </div>
+      <div class="actions hidden" id="actions">
+        <button id="again">忘记</button>
+        <button id="hard">模糊</button>
+        <button id="good">认识</button>
+      </div>
+      <div id="done" class="done hidden">
+        <div id="done-title">🎉 今日复习完成</div>
+        <div class="sub" id="done-sub"></div>
+      </div>
+    </div>
+
+    <!-- 词表 -->
+    <div id="tab-words" class="tabpane hidden">
+      <div class="stats-line" id="words-stats"></div>
+      <div class="list" id="words-list"></div>
+    </div>
+
+    <!-- 设置 -->
+    <div id="tab-settings" class="tabpane hidden">
+      <div class="set-card">
+        <div class="set-row"><span>设备名</span><b id="set-device"></b></div>
+        <div class="set-row"><span>上次同步</span><b id="set-lastsync">—</b></div>
+        <div class="set-row"><span>服务端</span><b id="set-server">—</b></div>
+        <button class="btn danger" id="unbind">解除配对</button>
+        <p class="set-hint">解除后清除本机配对信息（生词数据保留）。</p>
+      </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <nav class="tabbar">
+      <button data-tab="review" class="active">🔁 复习</button>
+      <button data-tab="words">🗂️ 词表</button>
+      <button data-tab="settings">⚙️ 设置</button>
+    </nav>
+  </div>
+
+<script src="vendor/supermemo.js"></script>
+<script src="db.js"></script>
+<script src="sync.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

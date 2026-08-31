@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",
+    "qrcode-generator": "^2.0.4",
     "supermemo": "^2.0.23"
   },
   "build": {
@@ -25,6 +26,7 @@
     "files": [
       "main/**",
       "renderer/**",
+      "mobile/**",
       "assets/**",
       "scripts/download-dict.js",
       "scripts/uia.ps1",

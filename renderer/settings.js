@@ -187,6 +187,67 @@ async function refreshWords() {
 
 // 生词本刷新入口已合并进 tab 点击处理
 
+// ---------- 手机端同步 ----------
+async function refreshSync() {
+  const st = await api.syncStatus();
+  const box = document.getElementById('sync-status');
+  const btn = document.getElementById('sync-toggle');
+  if (st.running) {
+    box.innerHTML =
+      `<div class="status-box ok"><span class="sb-icon">✅</span><div class="sb-body">` +
+      `<div class="sb-main">局域网同步运行中 · <b>${st.ip || '无局域网地址'}</b> : ${st.port}</div>` +
+      `<div class="sb-sub">手机连同一 Wi-Fi，扫码或访问页面地址即可配对</div></div></div>`;
+    btn.textContent = '停止同步';
+  } else if (st.enabled) {
+    box.innerHTML =
+      `<div class="status-box warn"><span class="sb-icon">⚠️</span><div class="sb-body">` +
+      `<div class="sb-main">已启用但未能启动</div>` +
+      `<div class="sb-sub">${st.error ? '错误：' + st.error + '。' : ''}常见原因：端口被占用、防火墙拦截</div></div></div>`;
+    btn.textContent = '重试启动';
+  } else {
+    box.innerHTML =
+      '<div class="status-box warn"><span class="sb-icon">📱</span><div class="sb-body">' +
+      '<div class="sb-main">未开启</div>' +
+      '<div class="sb-sub">开启后本机作为同步中枢，手机端经局域网与 PC 双向同步</div></div></div>';
+    btn.textContent = '启动局域网同步';
+  }
+  const devBox = document.getElementById('sync-devices');
+  devBox.innerHTML = '';
+  for (const d of st.devices || []) {
+    const row = document.createElement('div');
+    row.className = 'sync-device-row';
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = '📱 ' + d.name;
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = '上次同步 ' + new Date(d.lastSyncAt).toLocaleTimeString('zh-CN');
+    row.appendChild(name); row.appendChild(meta);
+    devBox.appendChild(row);
+  }
+}
+
+document.getElementById('sync-toggle').onclick = async () => {
+  const st = await api.syncStatus();
+  await api.syncToggle(!st.running);
+  refreshSync();
+};
+
+document.getElementById('sync-qr').onclick = async () => {
+  const r = await api.syncPairQR();
+  const m = document.getElementById('dict-msg');
+  if (!r.svg) {
+    if (m) msg(m, '请先启动同步再显示二维码', 'err');
+    refreshSync();
+    return;
+  }
+  document.getElementById('qr-box').innerHTML = r.svg;
+  document.getElementById('qr-url').textContent = r.url;
+  document.getElementById('qr-overlay').classList.remove('hidden');
+};
+document.getElementById('qr-close').onclick = () =>
+  document.getElementById('qr-overlay').classList.add('hidden');
+
 // ---------- 词汇量自测 ----------
 let vocabSession = null; // { words: [], answers: [], idx: 0 }
 
@@ -314,4 +375,4 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-loadConfig().then(() => { refreshDict(); refreshWords(); refreshVocab(); });
+loadConfig().then(() => { refreshDict(); refreshWords(); refreshVocab(); refreshSync(); });

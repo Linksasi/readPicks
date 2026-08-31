@@ -62,6 +62,11 @@ const DEFAULTS = {
     enabled: true,
   },
   vocabLevel: null, // 词汇量自测结果 { score, cefr, buckets, fakeKnown, takenAt }，null=未测
+  sync: {           // 局域网同步（PC 即服务端，手机端经浏览器/APK 连入）
+    enabled: false,
+    port: 9723,
+    token: '',      // 首次启用自动生成；手机扫码配对
+  },
 };
 
 let cache = null;

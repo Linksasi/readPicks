@@ -11,6 +11,7 @@ const hotkey = require('./hotkey');
 const clipboardWatch = require('./clipboard-watch');
 const context = require('./context');
 const windowMgr = require('./window');
+const sync = require('./sync');
 const { downloadDict } = require('../scripts/download-dict');
 
 let tray = null;
@@ -300,8 +301,22 @@ function registerIpc() {
     hotkey.register(handleQuery, () =>
       windowMgr.showPopup({ kind: 'unknown', raw: '', loading: true })); // 热键热更新
     clipboardWatch.start(handleQuery);
+    // 同步开关热更新
+    if (patch && typeof patch.sync === 'object' && patch.sync.enabled !== undefined) {
+      if (patch.sync.enabled) sync.start(); else sync.stop();
+    }
     return cfg;
   });
+
+  // 局域网同步（手机端）
+  handleIpc('sync:status', () => sync.status());
+  handleIpc('sync:toggle', (_e, enabled) => {
+    config.update({ sync: { enabled: !!enabled } });
+    if (enabled) return sync.start();
+    sync.stop();
+    return sync.status();
+  });
+  handleIpc('sync:pair-qr', () => sync.pairQR());
 
   // 词汇量自测
   handleIpc('vocab:start', () => vocab.startTest());
@@ -382,6 +397,7 @@ if (!gotLock) {
     context.init(); // 加载上次复制的语境句子
     registerIpc();
     createTray();
+    if (config.load().sync?.enabled) sync.start(); // 局域网同步（设置里开启）
     windowMgr.createPopup(); // 预创建悬浮窗，热键首次触发零等待
     const ok = hotkey.register(handleQuery, () =>
       windowMgr.showPopup({ kind: 'unknown', raw: '', loading: true }));
@@ -394,5 +410,8 @@ if (!gotLock) {
   app.on('window-all-closed', (e) => {
     // 托盘常驻，不退出
   });
-  app.on('before-quit', () => hotkey.unregister());
+  app.on('before-quit', () => {
+    sync.stop();
+    hotkey.unregister();
+  });
 }

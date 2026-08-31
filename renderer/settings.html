@@ -19,6 +19,7 @@
     <button data-tab="general" class="active">⚙️ 常规</button>
     <button data-tab="translate">🌐 翻译源</button>
     <button data-tab="dict">📚 词典</button>
+    <button data-tab="sync">🔄 同步</button>
     <button data-tab="words">🗂️ 生词本</button>
   </div>
 
@@ -129,12 +130,37 @@
     </div>
   </div>
 
+  <!-- 同步 -->
+  <div id="tab-sync" class="pane">
+    <div class="card">
+      <h3>📱 手机端同步</h3>
+      <div id="sync-status"></div>
+      <div class="btn-row">
+        <button class="btn" id="sync-toggle">启动局域网同步</button>
+        <button class="btn ghost" id="sync-qr">显示配对二维码</button>
+      </div>
+      <p class="hint hint-flat">手机与电脑连同一 Wi-Fi 后，用相机扫码即可打开「拾词」手机版：复习生词、浏览生词本，数据自动双向同步。<br>
+      首次同步会把 PC 上的全部生词与语境带到手机；之后每次打开页面/点「立即同步」都会增量拉推。</p>
+      <div id="sync-devices"></div>
+    </div>
+  </div>
+
   <!-- 生词本 -->
   <div id="tab-words" class="pane">
     <div class="card">
       <h3>生词本管理</h3>
       <div class="stats-line" id="words-stats"></div>
       <div class="list" id="words-list"></div>
+    </div>
+  </div>
+
+  <!-- 配对二维码浮层 -->
+  <div id="qr-overlay" class="qr-overlay hidden">
+    <div class="qr-dialog">
+      <div class="qr-title">手机扫码打开拾词手机版</div>
+      <div class="qr-box" id="qr-box"></div>
+      <div class="qr-url" id="qr-url"></div>
+      <div class="btn-row qr-actions"><button class="btn ghost" id="qr-close">关闭</button></div>
     </div>
   </div>
 
