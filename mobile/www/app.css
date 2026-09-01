@@ -217,29 +217,38 @@ input[type=range].set-input { padding: 0; height: 28px; accent-color: var(--acce
 .q-level { color: #b45309; font-size: 12px; margin-top: 4px; }
 
 /* ---------- 划词悬浮卡模式 ----------
-   WebView 被原生裁成卡片矩形（CardActivity.styleCard），四周直接露出源应用+系统压暗；
-   卡片本体 = body 背景（不透明白），不依赖 WebView 透明 */
-html.card-mode, body.card-mode { height: auto; }
-body.card-mode { background: var(--card); padding: 44px 14px 12px; }
+   全屏 WebView + CSS 半透明压暗层（rgba 在所有设备可靠渲染）+ 白色卡片面板。
+   压暗后源应用内容仍然可见；面板宽度由 --card-w 控制（设置页滑杆） */
+html.card-mode, body.card-mode { height: 100%; }
+body.card-mode {
+  background: rgba(0, 0, 0, .5);
+  padding: calc(env(safe-area-inset-top) + 38px) 14px 16px;
+  overflow: hidden;
+}
 body.card-mode .tabbar,
 body.card-mode .top,
 body.card-mode .sync-line { display: none; }
-body.card-mode .page { padding: 0; height: auto; }
+body.card-mode .page {
+  height: 100%; padding: 0;
+  width: var(--card-w, 72%); margin: 0 auto;
+  background: var(--card); border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .35);
+  overflow-y: auto; position: relative;
+}
 body.card-mode #tab-review,
 body.card-mode #tab-words,
 body.card-mode #tab-settings { display: none !important; }
 body.card-mode #tab-query {
   display: block; background: none; box-shadow: none;
-  padding: 0; max-height: none; position: relative;
+  padding: 44px 16px 12px; max-height: none; position: relative;
 }
 body.card-mode .q-form { margin: 0 0 10px; }
 body.card-mode .q-card { flex: none; max-height: none; box-shadow: none; border: none; padding: 0 0 4px; background: none; }
 body.card-mode .card-close {
-  position: absolute; top: -34px; right: 0; z-index: 5;
+  position: absolute; top: 10px; right: 10px; z-index: 5;
   width: 30px; height: 30px; border: none; border-radius: 50%;
-  background: rgba(255, 255, 255, .85); color: var(--muted); font-size: 14px; cursor: pointer;
+  background: var(--bg); color: var(--muted); font-size: 14px; cursor: pointer;
 }
-body.card-mode .card-close { top: -34px; right: 0; }
 
 /* ---------- 底部导航 ---------- */
 .tabbar {

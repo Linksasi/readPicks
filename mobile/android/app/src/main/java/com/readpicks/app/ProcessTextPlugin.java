@@ -44,13 +44,4 @@ public class ProcessTextPlugin extends Plugin {
         getActivity().runOnUiThread(() -> getActivity().finish());
         call.resolve();
     }
-
-    /** JS 同步卡片尺寸：宽度百分比（屏幕）+ 内容高度（CSS px） */
-    @PluginMethod
-    public void setCardSize(PluginCall call) {
-        Float w = call.getFloat("widthPct");
-        Integer h = call.getInt("contentHeight");
-        CardActivity.applySize(w == null ? 94f : w, h == null ? -1 : h);
-        call.resolve();
-    }
 }

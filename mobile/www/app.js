@@ -340,7 +340,6 @@ async function runQuery(raw) {
   }
 
   renderQueryCard(payload, srcLabel);
-  syncCardSize();
 }
 
 /** MyMemory 直连（与 PC translate.js 同款接口）；8 秒超时，失败返回 null */
@@ -441,7 +440,6 @@ async function addToWordbook(p) {
   }
   $('q-src').textContent = '✓ 已加入生词本' + (p.context ? ' · 带语境句' : '');
   runSync(false);
-  syncCardSize(); // 按钮文案变化影响内容高度
   if (cardMode) setTimeout(closeCard, 1400); // 悬浮卡：入库后稍候自动关闭回阅读处
   return true;
 }
@@ -504,26 +502,18 @@ function cardSize() {
   return v >= 60 && v <= 100 ? v : 72;
 }
 
-/** 把宽度百分比 + 内容高度同步给原生（原生按此裁切 WebView 为卡片矩形）。
-    高度封顶为屏幕的 62%：内容超高时卡片内部滚动，保持悬浮形态 */
-function syncCardSize() {
-  if (!cardMode) return;
-  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
-  if (!P || !P.setCardSize) return;
-  const maxH = Math.round((window.screen.height || 640) * 0.62); // screen.height 与 WebView 实际大小无关，稳定
-  document.body.style.maxHeight = maxH + 'px';
-  document.body.style.overflowY = 'auto';
-  const h = Math.min(document.body.scrollHeight, maxH);
-  P.setCardSize({ widthPct: cardSize(), contentHeight: h });
+/** 应用卡片宽度（CSS 变量驱动，压暗层/面板全部 CSS 绘制，任何设备可靠） */
+function applyCardSize() {
+  document.documentElement.style.setProperty('--card-w', cardSize() + '%');
 }
 
 function enterCardMode() {
-  if (cardMode) { syncCardSize(); return; }
+  if (cardMode) return;
   cardMode = true;
   document.body.classList.add('card-mode');
   document.documentElement.classList.add('card-mode');
+  applyCardSize();
   switchTab('query');
-  syncCardSize();
   const close = el('button', 'card-close', '✕');
   close.onclick = () => closeCard();
   $('tab-query').appendChild(close);
@@ -757,7 +747,7 @@ function refreshCardSize() {
 $('card-size').addEventListener('input', () => {
   localStorage.setItem(CARD_SIZE_KEY, $('card-size').value);
   $('card-size-val').textContent = $('card-size').value + '%';
-  syncCardSize();
+  applyCardSize();
 });
 
 // ---------- 事件绑定 ----------
