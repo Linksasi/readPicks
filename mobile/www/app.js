@@ -340,6 +340,7 @@ async function runQuery(raw) {
   }
 
   renderQueryCard(payload, srcLabel);
+  syncCardSize();
 }
 
 /** MyMemory 直连（与 PC translate.js 同款接口）；8 秒超时，失败返回 null */
@@ -440,6 +441,7 @@ async function addToWordbook(p) {
   }
   $('q-src').textContent = '✓ 已加入生词本' + (p.context ? ' · 带语境句' : '');
   runSync(false);
+  syncCardSize(); // 按钮文案变化影响内容高度
   if (cardMode) setTimeout(closeCard, 1400); // 悬浮卡：入库后稍候自动关闭回阅读处
   return true;
 }
@@ -502,21 +504,22 @@ function cardSize() {
   return v >= 60 && v <= 100 ? v : 94;
 }
 
-/** 应用用户设置的大小：宽度按屏幕百分比，高度略缩保出上下留白 */
-function applyCardSize() {
+/** 把宽度百分比 + 内容高度同步给原生（原生按此裁切 WebView 为卡片矩形） */
+function syncCardSize() {
   if (!cardMode) return;
-  const pct = cardSize();
-  const q = $('tab-query');
-  q.style.width = pct + '%';
-  q.style.maxHeight = Math.max(45, pct - 8) + '%';
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  if (!P || !P.setCardSize) return;
+  const h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+  P.setCardSize({ widthPct: cardSize(), contentHeight: h });
 }
 
 function enterCardMode() {
-  if (cardMode) { applyCardSize(); return; }
+  if (cardMode) { syncCardSize(); return; }
   cardMode = true;
   document.body.classList.add('card-mode');
+  document.documentElement.classList.add('card-mode');
   switchTab('query');
-  applyCardSize();
+  syncCardSize();
   const close = el('button', 'card-close', '✕');
   close.onclick = () => closeCard();
   $('tab-query').appendChild(close);
@@ -750,7 +753,7 @@ function refreshCardSize() {
 $('card-size').addEventListener('input', () => {
   localStorage.setItem(CARD_SIZE_KEY, $('card-size').value);
   $('card-size-val').textContent = $('card-size').value + '%';
-  applyCardSize();
+  syncCardSize();
 });
 
 // ---------- 事件绑定 ----------
