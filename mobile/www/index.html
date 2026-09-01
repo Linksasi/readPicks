@@ -11,24 +11,8 @@
   <!-- 启动诊断条：JS 错误上屏（防白屏不可诊断），boot.js 控制显隐 -->
   <div id="boot-error" class="boot-error hidden"></div>
 
-  <!-- 配对页（默认可见：即使启动 JS 失败也有内容可看） -->
-  <div id="page-pair" class="page">
-    <div class="pair-hero">
-      <div class="pair-logo">📖</div>
-      <div class="pair-title">拾词</div>
-      <div class="pair-sub">连接电脑端，同步生词本与复习进度</div>
-    </div>
-    <div class="pair-form">
-      <label class="pair-label">粘贴电脑端设置页生成的配对链接</label>
-      <input type="text" id="pair-input" placeholder="http://192.168.x.x:9723/app/?t=…" autocapitalize="off" autocorrect="off" spellcheck="false">
-      <button class="btn primary" id="pair-btn">配对并同步</button>
-      <p class="pair-hint">电脑与手机需连同一 Wi-Fi。链接在 PC 端「设置 → 同步 → 显示配对二维码」生成。</p>
-      <p class="msg" id="pair-msg"></p>
-    </div>
-  </div>
-
-  <!-- 主页面 -->
-  <div id="page-main" class="page hidden">
+  <!-- 主页面（始终进入：查词/复习/词表离线独立可用，配对在设置页） -->
+  <div id="page-main" class="page">
     <div class="top">
       <span id="tab-title">今日复习</span>
       <button class="sync-btn" id="sync-now">⟳ 同步</button>
@@ -70,6 +54,13 @@
 
     <!-- 设置 -->
     <div id="tab-settings" class="tabpane hidden">
+      <div id="pair-card" class="set-card">
+        <div class="set-title">🔗 连接电脑端</div>
+        <input type="text" class="set-input" id="pair-input" placeholder="http://192.168.x.x:9723/app/?t=…" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button class="btn primary" id="pair-btn">配对并同步</button>
+        <p class="msg" id="pair-msg"></p>
+        <p class="set-hint">链接在 PC 端「设置 → 同步 → 显示配对二维码」生成，两端需同一 Wi-Fi。不配对也能查词/复习（数据仅在本机），配对后两端互通。</p>
+      </div>
       <div class="set-card">
         <div class="set-row"><span>词汇量水平</span><b id="set-vocab">—</b></div>
         <div id="vocab-home" class="btn-row-plain">

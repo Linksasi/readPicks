@@ -8,7 +8,8 @@ const CLOCK_SKEW_MS = 5 * 60 * 60 * 1000;
 
 let idb = null;
 
-function open() {
+/** 打开 IndexedDB（命名 openDb：顶层 function 会挂到 window，避免覆盖 window.open） */
+async function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('readpicks', 1);
     req.onupgradeneeded = () => {
@@ -280,7 +281,7 @@ function applyQueryFromSync(row, now) {
 
 // ---------- 全局暴露（无构建系统） ----------
 window.rpdb = {
-  open, getMeta, setMeta,
+  open: openDb, getMeta, setMeta,
   getWord, recordLookup, getHistory, getRecentContexts,
   reviewWord, dueWords, dueCount, allWords, recentWords,
   setNote, removeWord, stats,

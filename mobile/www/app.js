@@ -13,16 +13,10 @@ const $ = (id) => document.getElementById(id);
 
 // ---------- 页面路由 ----------
 
-function showPair() {
-  $('page-pair').classList.remove('hidden');
-  $('page-main').classList.add('hidden');
-}
-
 function showMain() {
-  $('page-pair').classList.add('hidden');
   $('page-main').classList.remove('hidden');
   switchTab('review');
-  refreshSyncLine(true);
+  refreshSyncLine();
 }
 
 function switchTab(name) {
@@ -37,7 +31,7 @@ function switchTab(name) {
   if (name === 'settings') refreshSettings();
 }
 
-// ---------- 配对 ----------
+// ---------- 配对（设置页卡片） ----------
 
 $('pair-btn').onclick = async () => {
   const msg = $('pair-msg');
@@ -52,7 +46,9 @@ $('pair-btn').onclick = async () => {
   $('pair-btn').textContent = '同步中…';
   try {
     await rpsync.doSync();
-    showMain();
+    refreshSettings();
+    runSync(false);
+    switchTab('review');
   } catch (e) {
     msg.textContent = '❌ ' + e.message;
   } finally {
@@ -66,6 +62,11 @@ $('pair-btn').onclick = async () => {
 let syncing = false;
 async function runSync(explicit) {
   if (syncing) return;
+  if (!rpsync.isPaired()) {
+    $('sync-line').className = 'sync-line';
+    $('sync-line').textContent = '未连接电脑：查词/复习离线可用，配对后自动同步（设置页）';
+    return;
+  }
   syncing = true;
   const btn = $('sync-now');
   btn.disabled = true;
@@ -89,8 +90,12 @@ async function runSync(explicit) {
   }
 }
 
-async function refreshSyncLine(auto) {
-  if (!rpsync.isPaired()) { showPair(); return; }
+async function refreshSyncLine() {
+  if (!rpsync.isPaired()) {
+    $('sync-line').className = 'sync-line';
+    $('sync-line').textContent = '未连接电脑：查词/复习离线可用，配对后自动同步（设置页）';
+    return;
+  }
   const last = await rpdb.getMeta('lastSyncAt', 0);
   if (last) {
     $('sync-line').className = 'sync-line';
@@ -232,9 +237,6 @@ async function loadMiniDict() {
   return miniDict;
 }
 
-const POS_LABEL = {
-  n: '名词', v: '动词', a: '形容词', s: '形容词', r: '副词', vt: '及物动词', vi: '不及物动词', ad: '副词', u: '感叹', c: '连词',
-};
 const TAG_LABEL = { zk: '中考', gk: '高考', cet4: '四级', cet6: '六级', kaoyan: '考研', toefl: '托福', ielts: '雅思', gre: 'GRE' };
 
 /** ECDICT 行式释义（"n. 苹果\nv. …"）→ [{pos, def}] */
@@ -403,7 +405,7 @@ function renderSenses(en) {
   const wrap = el('div', 'en-def-block');
   for (const s of en.senses) {
     const row = el('div', 'en-sense');
-    if (s.pos) row.appendChild(el('span', 'pos', POS_LABEL[s.pos] || s.pos + '.'));
+    if (s.pos) row.appendChild(el('span', 'pos', rpend.POS_LABEL[s.pos] || s.pos + '.'));
     for (const part of String(s.text || '').split(/([A-Za-z][A-Za-z'-]*)/g)) {
       if (/^[A-Za-z]/.test(part) && hardSet.has(part.toLowerCase())) {
         const b = el('button', 'hard-word', part);
@@ -569,8 +571,10 @@ async function refreshWords() {
 
 async function refreshSettings() {
   const cfg = rpsync.syncConfig();
+  const paired = rpsync.isPaired();
+  $('pair-card').classList.toggle('hidden', paired);
   $('set-device').textContent = localStorage.getItem('rp-device-name') || deviceName();
-  $('set-server').textContent = cfg.serverUrl || rpsync.apiBase();
+  $('set-server').textContent = paired ? (cfg.serverUrl || rpsync.apiBase()) : '未配对（离线模式）';
   const last = await rpdb.getMeta('lastSyncAt', 0);
   $('set-lastsync').textContent = last ? new Date(last).toLocaleString('zh-CN') : '从未';
   const lvl = await rpdb.getMeta('vocabLevel', null);
@@ -638,8 +642,10 @@ async function vocabAnswer(known) {
   if (s.idx >= s.items.length) {
     const r = rpvocab.finish(s.items, s.answers);
     await rpdb.setMeta('vocabLevel', r);
-    vocabShowHome();
-    $('set-vocab').textContent = `✓ 约 ${r.score} 词（CEFR ${r.cefr}）` + (r.fakeKnown ? ` · 误认伪词 ${r.fakeKnown} 个` : '');
+    await vocabShowHome(); // 先让首页状态落地，再覆盖为本次结果（避免异步覆盖竞态）
+    $('set-vocab').textContent = r.score > 0
+      ? `✓ 约 ${r.score} 词（CEFR ${r.cefr}）` + (r.fakeKnown ? ` · 误认伪词 ${r.fakeKnown} 个` : '')
+      : '✓ 测完了：这次全部未命中（词汇量记为 0，可重测）';
     runSync(false); // 推给电脑端，两端个性化一致
   } else {
     vocabShowWord();
@@ -659,7 +665,8 @@ function deviceName() {
 $('unbind').onclick = () => {
   if (!confirm('解除配对？本机生词数据保留，仅清除连接信息。')) return;
   localStorage.removeItem('rp-sync');
-  showPair();
+  refreshSettings();
+  refreshSyncLine();
 };
 
 // ---------- 事件绑定 ----------
@@ -684,10 +691,8 @@ document.addEventListener('click', (e) => {
     await rpdb.open();
     deviceName();
     setupProcessText(); // APK：系统选择菜单「拾词」→ 预填查询
-    if (rpsync.isPaired()) showMain();
-    else showPair();
+    showMain(); // 始终进入主界面：查词/复习离线独立可用，配对在设置页
   } catch (e) {
     if (window.rpboot) window.rpboot.show('初始化失败：' + ((e && e.message) || e));
-    showPair(); // 兜底：至少让配对页可见可操作
   }
 })();

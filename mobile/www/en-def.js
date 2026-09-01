@@ -1,12 +1,14 @@
 // mobile/www/en-def.js — 英英释义工具（与 PC 端 ecdict.parseDefinition / vocabtest 同语义移植）
 // 数据源是 mini 词典（词条 d=英文释义 b=bnc 词频排名），难词判定依赖同步来的 vocabLevel
+// 全部包在 IIFE 里：经典脚本共享全局作用域，顶层 const 重复声明会直接 SyntaxError 白屏
 'use strict';
 
-const POS_SHORT = '(n|v|a|s|r|vt|vi|ad|u|c)';
-const POS_LABEL = {
-  n: '名词', v: '动词', a: '形容词', s: '形容词', r: '副词',
-  vt: '及物动词', vi: '不及物动词', ad: '副词', u: '感叹', c: '连词',
-};
+(function () {
+  const POS_SHORT = '(n|v|a|s|r|vt|vi|ad|u|c)';
+  const POS_LABEL = {
+    n: '名词', v: '动词', a: '形容词', s: '形容词', r: '副词',
+    vt: '及物动词', vi: '不及物动词', ad: '副词', u: '感叹', c: '连词',
+  };
 
 /** ECDICT definition 字段 → [{pos, text}]：按行切 + 行内多义项二次切分，上限 8 条（与 PC 一致） */
 function parseDefinition(def) {
@@ -101,4 +103,5 @@ function buildEnDefinition(entry, vocabLevel, mini) {
   };
 }
 
-window.rpend = { parseDefinition, toCefr, levelInfo, annotateHardWords, hardWordHints, firstSense, buildEnDefinition, POS_LABEL };
+  window.rpend = { parseDefinition, toCefr, levelInfo, annotateHardWords, hardWordHints, firstSense, buildEnDefinition, POS_LABEL };
+})();
