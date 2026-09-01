@@ -69,9 +69,22 @@
     <!-- 设置 -->
     <div id="tab-settings" class="tabpane hidden">
       <div class="set-card">
+        <div class="set-row"><span>词汇量水平</span><b id="set-vocab">—</b></div>
         <div class="set-row"><span>设备名</span><b id="set-device"></b></div>
         <div class="set-row"><span>上次同步</span><b id="set-lastsync">—</b></div>
         <div class="set-row"><span>服务端</span><b id="set-server">—</b></div>
+      </div>
+      <div class="set-card">
+        <div class="set-title">🤖 AI 简单释义（直连）</div>
+        <label class="llm-row"><input type="checkbox" id="llm-enabled"><span>启用（外出查词直连，不依赖电脑）</span></label>
+        <input type="text" class="set-input" id="llm-baseUrl" placeholder="https://api.deepseek.com/v1" autocapitalize="off" spellcheck="false">
+        <input type="password" class="set-input" id="llm-apiKey" placeholder="API Key">
+        <input type="text" class="set-input" id="llm-model" placeholder="deepseek-chat" autocapitalize="off" spellcheck="false">
+        <button class="btn primary" id="llm-save">保存 AI 配置</button>
+        <p class="msg" id="llm-msg"></p>
+        <p class="set-hint">OpenAI 兼容接口（DeepSeek/通义等），Key 只存在本机。查词时用它生成「适合你词汇水平的简单英语释义」与语境句译——用英语理解英语，与电脑端各自配置、互不影响。</p>
+      </div>
+      <div class="set-card">
         <button class="btn danger" id="unbind">解除配对</button>
         <p class="set-hint">解除后清除本机配对信息（生词数据保留）。</p>
       </div>
@@ -87,6 +100,8 @@
   </div>
 
 <script src="vendor/supermemo.js"></script>
+<script src="en-def.js"></script>
+<script src="llm.js"></script>
 <script src="db.js"></script>
 <script src="sync.js"></script>
 <script src="app.js"></script>

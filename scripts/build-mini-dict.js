@@ -23,21 +23,26 @@ app.whenReady().then(() => {
 
     // 高频词优先（frq 为语料库频率序，1 最常用），另补 Collins/牛津 标注但语料缺频的词
     const rows = db.prepare(
-      'SELECT word, phonetic, translation FROM stardict WHERE frq > 0 ORDER BY frq ASC LIMIT ?'
+      'SELECT word, phonetic, translation, definition, bnc FROM stardict WHERE frq > 0 ORDER BY frq ASC LIMIT ?'
     ).all(limit);
     const seen = new Set(rows.map((r) => r.word));
     const extra = db.prepare(
-      'SELECT word, phonetic, translation FROM stardict WHERE frq = 0 AND (collins > 0 OR oxford > 0) LIMIT 5000'
+      'SELECT word, phonetic, translation, definition, bnc FROM stardict WHERE frq = 0 AND (collins > 0 OR oxford > 0) LIMIT 5000'
     ).all();
     for (const r of extra) if (!seen.has(r.word)) { rows.push(r); seen.add(r.word); }
 
-    // 释义截断：前 2 行、每行 80 字符（复习卡/查询卡的中文兜底足够）
+    // 中文释义截断：前 2 行、每行 80 字符；英文释义截断 200 字符（供手机端离线出 WordNet 式义项）
     const trunc = (t) => String(t || '').split('\n').slice(0, 2).map((s) => s.slice(0, 80)).join('\n');
     const words = {};
     for (const r of rows) {
       const t = trunc(r.translation);
       if (!t) continue; // 无中文释义的条目（专名等）不占体积
-      words[r.word.toLowerCase()] = { p: r.phonetic || '', t };
+      const e = { p: r.phonetic || '', t };
+      const d = String(r.definition || '').trim();
+      if (d) e.d = d.slice(0, 200);
+      const b = Number(r.bnc) || 0;
+      if (b > 0) e.b = b; // 词频排名（难词标注用）
+      words[r.word.toLowerCase()] = e;
     }
 
     // lemma 词形还原表：官方格式 `be/4109826 -> is,was,are`；只保留「原形在词头集内」的变形

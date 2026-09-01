@@ -59,6 +59,7 @@ async function doSync() {
       cursors: { words: await rpdb.getMeta(SYNC_META.cursorsW, 0), queries: await rpdb.getMeta(SYNC_META.cursorsQ, 0) },
       words,
       queries: events,
+      meta: { vocabLevel: await rpdb.getMeta('vocabLevel', null) },
     }),
   });
   if (res.status === 401) throw new Error('配对已失效：token 不正确，请重新扫码配对');
@@ -73,6 +74,14 @@ async function doSync() {
 
   await rpdb.setMeta(SYNC_META.cursorsW, data.serverTime);
   await rpdb.setMeta(SYNC_META.cursorsQ, data.serverTime);
+  // 用户属性互通：服务端的 vocabLevel 更新（takenAt 更新）才采纳，本地更新的不回退
+  const remoteLvl = data.meta && data.meta.vocabLevel;
+  if (remoteLvl && remoteLvl.takenAt) {
+    const localLvl = await rpdb.getMeta('vocabLevel', null);
+    if (!localLvl || !localLvl.takenAt || remoteLvl.takenAt > localLvl.takenAt) {
+      await rpdb.setMeta('vocabLevel', remoteLvl);
+    }
+  }
   if (events.length) await rpdb.setMeta(SYNC_META.pushedSeq, localSeq);
   await rpdb.setMeta('dirtyWords', []); // 服务端已收下本批脏词
   await rpdb.setMeta('lastSyncAt', Date.now());

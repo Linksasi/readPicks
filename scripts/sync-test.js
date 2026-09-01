@@ -4,14 +4,16 @@ const { app } = require('electron');
 
 app.whenReady().then(async () => {
   let origSync = null;
+  let origVocabLevel = null;
   try {
     const assert = (cond, label) => { if (!cond) throw new Error('FAIL: ' + label); console.log('PASS', label); };
     const db = require('../main/db');
     const config = require('../main/config');
     const sync = require('../main/sync');
 
-    // 保存用户真实 sync 配置，测试结束恢复（测试会临时改写 enabled/port/token）
+    // 保存用户真实 sync 配置与词汇量，测试结束恢复（测试会临时改写）
     origSync = JSON.parse(JSON.stringify(config.load().sync || {}));
+    origVocabLevel = config.load().vocabLevel === null ? null : JSON.parse(JSON.stringify(config.load().vocabLevel));
 
     db.init();
 
@@ -121,6 +123,15 @@ app.whenReady().then(async () => {
       queries: [{ uuid: require('crypto').randomUUID(), word: 'syncpear', context: 'She peeled a pear.', context_cloze: 'She peeled a {{c1::pear}}.', created_at: t1 }],
     }) });
     assert(push.body.applied.appliedWords === 1 && push.body.applied.appliedQueries === 1, '手机 push 落地');
+
+    // vocabLevel 互通：手机端测过的水平（takenAt 更新）推上 PC；旧的不回退
+    const pushedLvl = { score: 8800, cefr: 'B2', takenAt: Date.now() + 10000 };
+    const s2 = await j('/api/sync', { method: 'POST', headers: hdr, body: JSON.stringify({ meta: { vocabLevel: pushedLvl }, cursors: { words: 0, queries: 0 } }) });
+    assert(config.load().vocabLevel && config.load().vocabLevel.score === 8800, '手机 vocabLevel 落到 PC config');
+    assert(s2.body.meta && s2.body.meta.vocabLevel && s2.body.meta.vocabLevel.score === 8800, '响应带回 vocabLevel');
+    const older = { score: 1000, cefr: 'A1', takenAt: Date.now() - 100000 };
+    await j('/api/sync', { method: 'POST', headers: hdr, body: JSON.stringify({ meta: { vocabLevel: older }, cursors: { words: 0, queries: 0 } }) });
+    assert(config.load().vocabLevel.score === 8800, '更旧的 vocabLevel 不回退（takenAt LWW）');
     const third = await j('/api/sync', { method: 'POST', headers: hdr, body: JSON.stringify({ cursors: { words: t1, queries: t1 } }) });
     assert(third.body.words.some((x) => x.word === 'syncpear') && third.body.queries.some((q) => q.word === 'syncpear'), '其他设备可拉到该词增量');
     assert(db.getWord('syncpear').query_count >= 1, 'push 落地后计数正确');
@@ -135,7 +146,7 @@ app.whenReady().then(async () => {
     const page = await fetch(base + '/app/');
     const html = await page.text();
     assert(page.status === 200 && html.includes('拾词') && html.includes('app.js'), '手机端页面经 /app/ 托管');
-    assert((page.headers.get('content-security-policy') || '').includes('api.mymemory.translated.net'), 'CSP 放行 MyMemory（未配对在线兜底可用）');
+    assert((page.headers.get('content-security-policy') || '').includes("connect-src 'self' https:"), 'CSP 放行 https 外联（手机端直连翻译/LLM 可用）');
     assert((await fetch(base + '/', { redirect: 'manual' })).status === 302, '根路径 302 到 /app/');
     const evil = await fetch(base + '/app/..%2f..%2fpackage.json');
     assert(evil.status !== 200 || !(await evil.text()).includes('"main"'), '目录穿越被拒');
@@ -162,7 +173,9 @@ app.whenReady().then(async () => {
     console.error('SYNC TEST FAIL:', e.message);
     process.exitCode = 1;
   } finally {
-    if (origSync) require('../main/config').update({ sync: origSync });
+    const cfg = require('../main/config');
+    if (origSync) cfg.update({ sync: origSync });
+    if (origVocabLevel) cfg.update({ vocabLevel: origVocabLevel });
   }
   app.exit(process.exitCode || 0);
 });

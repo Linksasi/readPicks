@@ -126,14 +126,24 @@ body {
 .empty { color: var(--muted); text-align: center; padding: 40px 16px; font-size: 13.5px; line-height: 1.9; }
 
 /* ---------- 设置页 ---------- */
-#tab-settings { padding-bottom: 74px; }
+#tab-settings { padding-bottom: 74px; overflow-y: auto; }
 .set-card {
   border: 1px solid var(--border); border-radius: 14px; background: var(--card);
-  padding: 8px 16px; margin-top: 4px;
+  padding: 8px 16px 14px; margin-top: 4px; margin-bottom: 10px;
 }
 .set-row { display: flex; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.set-row:last-of-type { border-bottom: none; }
 .set-row span { color: var(--muted); }
 .set-row b { font-weight: 600; word-break: break-all; text-align: right; }
+.set-title { font-size: 14px; font-weight: 700; padding: 10px 0 8px; }
+.llm-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 4px 0 10px; }
+.set-input {
+  width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--fg); font-size: 14px; outline: none; user-select: text;
+  margin-bottom: 8px;
+}
+.set-input:focus { border-color: var(--accent); }
+.msg.ok { color: var(--ok, #16a34a); }
 .btn {
   border: none; border-radius: 11px; padding: 13px 20px;
   font-size: 15px; font-weight: 700; cursor: pointer; width: 100%;

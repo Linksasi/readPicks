@@ -143,6 +143,15 @@ async function render() {
   if (ctx && ctx.simple_def) {
     back.appendChild(el('div', 'simple-def', ctx.simple_def));
     hasEn = true;
+  } else {
+    // 离线英英释义兜底：mini 词典的 WordNet 义项 + 按词汇水平标注难词
+    const mini = await loadMiniDict();
+    const entry = mini && (mini.words[w.word] || (mini.lemma[w.word] && mini.words[mini.lemma[w.word]]));
+    const en = entry && rpend.buildEnDefinition(entry, await rpdb.getMeta('vocabLevel', null), mini);
+    if (en && en.senses && en.senses.length) {
+      back.appendChild(renderSenses(en));
+      hasEn = true;
+    }
   }
   const def = el('div', 'back-def', w.definition || '（无释义记录）');
   if (hasEn) def.classList.add('muted');
@@ -246,10 +255,12 @@ async function runQuery(raw) {
   card.appendChild(el('div', 'q-loading', '查询中…'));
   $('q-src').textContent = '';
 
-  // 1) 本地瘦身词典：离线秒查（lemma 词形还原句中词干）
+  const lvl = await rpdb.getMeta('vocabLevel', null);
+  const mini = await loadMiniDict();
+
+  // 1) 本地瘦身词典：离线秒查（lemma 还原词干；带英文释义 → 难词标注，理念英文在上）
   let payload = null;
   let srcLabel = '';
-  const mini = await loadMiniDict();
   if (mini) {
     const direct = mini.words[word];
     const base = direct ? null : (mini.lemma[word] || null);
@@ -257,7 +268,8 @@ async function runQuery(raw) {
     if (hit) {
       payload = {
         word: base || word, phonetic: hit.p, defs: parseRows(hit.t),
-        tags: [], enDefinition: null, simpleDef: null, translated: null, found: true,
+        tags: [], enDefinition: rpend.buildEnDefinition(hit, lvl, mini) || null,
+        simpleDef: null, translated: null, found: true,
       };
       srcLabel = direct ? '离线词典' : `离线词典（${word} → ${base}）`;
     }
@@ -272,24 +284,59 @@ async function runQuery(raw) {
       });
       if (r.ok) {
         payload = await r.json();
-        srcLabel = payload.found ? 'PC 词典' : 'PC 词典（未收录，在线翻译兜底）';
+        srcLabel = payload.found ? 'PC 词典' : 'PC 词典（未收录，在线兜底）';
       }
-    } catch { /* 不在局域网：降级到直连在线翻译 */ }
+    } catch { /* 不在局域网：降级 */ }
   }
-  // 3) 直连在线翻译（免费 MyMemory，无需配对）：手机先行/外出时的兜底，翻译质量一般
+  // 3) LLM 直连（自己配的 OpenAI 兼容接口，外出可用）：整体兜底 + 补简单释义
+  if (rpllm.isConfigured()) {
+    try {
+      const sd = await rpllm.simpleDefinition(word, lvl);
+      if (sd) {
+        if (payload) {
+          payload.simpleDef = sd.simpleDef;
+          srcLabel += ' · AI 释义';
+        } else {
+          payload = { word, found: true, phonetic: '', defs: [], tags: [], enDefinition: null, simpleDef: sd.simpleDef, translated: null };
+          srcLabel = 'AI 释义';
+        }
+      }
+    } catch { /* LLM 失败继续走 MyMemory */ }
+  }
+  // 4) 直连在线翻译（免费 MyMemory，无需任何配置）
   if (!payload) {
     const t = await mymemoryTranslate(word);
     if (t) {
       payload = { word, found: true, phonetic: '', defs: [{ pos: '', def: t }], tags: [], enDefinition: null, simpleDef: null, translated: t };
-      srcLabel = '在线翻译（未连接电脑，仅供参考）';
+      srcLabel = '在线翻译（仅供参考）';
     }
   }
 
   card.innerHTML = '';
   if (!payload || (!payload.found && !payload.translated)) {
-    card.appendChild(el('div', 'q-empty', '没查到这个词：离线词典未收录、电脑端不在同一网络、在线翻译也无返回'));
+    card.appendChild(el('div', 'q-empty', '没查到这个词：离线词典未收录、在线翻译与 AI 释义也无返回'));
     return;
   }
+
+  // 划词语境（无障碍句）：LLM 出句译 + 词中译法，MyMemory 兜底句译——语境永远在场
+  const selCtx = await captureSelectionContext(word);
+  if (selCtx) {
+    payload.context = selCtx.context;
+    payload.cloze = selCtx.cloze;
+    let trans = null;
+    let wis = null;
+    if (rpllm.isConfigured()) {
+      try {
+        const r = await rpllm.lookupInContext(word, selCtx.context, lvl);
+        if (r) { trans = r.sentenceTranslation; wis = r.wordInSentence; }
+      } catch { /* 降级 MM */ }
+    }
+    if (!trans) trans = await mymemoryTranslate(selCtx.context);
+    payload.sentenceTranslation = trans || null;
+    payload.wordInSentence = wis || null;
+    srcLabel += ' · 含语境' + (payload.sentenceTranslation ? '' : '（句译不可用）');
+  }
+
   renderQueryCard(payload, srcLabel);
 }
 
@@ -319,7 +366,7 @@ function renderQueryCard(p, srcLabel) {
     for (const t of p.tags.slice(0, 6)) tl.appendChild(el('span', 'tag-chip', TAG_LABEL[t] || t));
     card.appendChild(tl);
   }
-  // 理念：英文释义在上，中文弱化兜底
+  // 理念：英文释义在上（AI 简单释义 / WordNet 义项），中文弱化兜底
   let hasEn = false;
   if (p.simpleDef) { card.appendChild(el('div', 'simple-def', p.simpleDef)); hasEn = true; }
   else if (p.enDefinition && p.enDefinition.senses && p.enDefinition.senses.length) {
@@ -331,6 +378,12 @@ function renderQueryCard(p, srcLabel) {
     const d = el('div', 'back-def', defs.map((x) => (x.pos ? x.pos + '. ' : '') + x.def).join('；'));
     if (hasEn) d.classList.add('muted');
     card.appendChild(d);
+  }
+  // 语境在场：原句 + 句译 + 词中译法
+  if (p.context) {
+    card.appendChild(el('div', 'back-ctx', '📖 ' + p.context));
+    if (p.sentenceTranslation) card.appendChild(el('div', 'back-ctx', '↳ ' + p.sentenceTranslation));
+    if (p.wordInSentence) card.appendChild(el('div', 'back-ctx', '· 本句中：' + p.wordInSentence));
   }
   const addBtn = el('button', 'btn primary q-add', '＋ 加入生词本');
   addBtn.onclick = async () => {
@@ -365,16 +418,17 @@ function renderSenses(en) {
   return wrap;
 }
 
-/** 入库（手机本地）→ 触发同步回流 PC。无障碍缓存里若有该词语境，一并入库（语境永远在场） */
+/** 入库（手机本地）→ 触发同步回流 PC。语境/句译/简单释义已在 runQuery 里算好，随词落库 */
 async function addToWordbook(p) {
-  const ctx = await captureSelectionContext(p.word);
   try {
     await rpdb.recordLookup({
       word: p.word,
       phonetic: p.phonetic || '',
       definition: (p.defs || []).map((x) => (x.pos ? x.pos + '. ' : '') + x.def).join('\n') || p.translated || '',
-      context: ctx ? ctx.context : null,
-      contextCloze: ctx ? ctx.cloze : null,
+      context: p.context || null,
+      contextCloze: p.cloze || null,
+      sentenceTranslation: p.sentenceTranslation || null,
+      wordInSentence: p.wordInSentence || null,
       simpleDef: p.simpleDef || null,
       source: 'mobile',
     });
@@ -382,7 +436,7 @@ async function addToWordbook(p) {
     console.error('入库失败', e);
     return false;
   }
-  $('q-src').textContent = '✓ 已加入生词本' + (ctx ? ' · 带语境句' : '');
+  $('q-src').textContent = '✓ 已加入生词本' + (p.context ? ' · 带语境句' : '');
   runSync(false);
   return true;
 }
@@ -519,7 +573,29 @@ async function refreshSettings() {
   $('set-server').textContent = cfg.serverUrl || rpsync.apiBase();
   const last = await rpdb.getMeta('lastSyncAt', 0);
   $('set-lastsync').textContent = last ? new Date(last).toLocaleString('zh-CN') : '从未';
+  const lvl = await rpdb.getMeta('vocabLevel', null);
+  $('set-vocab').textContent = lvl && lvl.score ? `约 ${lvl.score} 词（CEFR ${lvl.cefr}）` : '未测（电脑端测过后自动同步）';
+  const llm = rpllm.getConfig();
+  $('llm-enabled').checked = !!llm.enabled;
+  $('llm-baseUrl').value = llm.baseUrl || '';
+  $('llm-apiKey').value = llm.apiKey || '';
+  $('llm-model').value = llm.model || '';
 }
+
+$('llm-save').onclick = () => {
+  const m = $('llm-msg');
+  const enabled = $('llm-enabled').checked;
+  const baseUrl = $('llm-baseUrl').value.trim();
+  const apiKey = $('llm-apiKey').value.trim();
+  if (enabled && (!baseUrl || !apiKey)) {
+    m.textContent = '启用时 Base URL 与 API Key 必填';
+    m.className = 'msg';
+    return;
+  }
+  rpllm.saveConfig({ enabled, baseUrl, apiKey, model: $('llm-model').value.trim() });
+  m.textContent = '✓ 已保存，外出查词直连生效';
+  m.className = 'msg ok';
+};
 
 function deviceName() {
   const ua = navigator.userAgent;

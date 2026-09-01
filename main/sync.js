@@ -132,8 +132,8 @@ function serveStatic(req, res, urlPath) {
   const ext = path.extname(file).toLowerCase();
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    // 与 renderer 同约定：样式/脚本全部外链，禁内联；connect-src 放行同源（同步 API）+ MyMemory（手机端离线词典未命中时的直连在线翻译兜底）
-    'Content-Security-Policy': "default-src 'self'; style-src 'self'; connect-src 'self' https://api.mymemory.translated.net",
+    // 与 renderer 同约定：样式/脚本全部外链，禁内联；connect-src 放行同源 + 任意 https（手机端直连在线翻译/自有 LLM 接口，域名因配置而异无法枚举）
+    'Content-Security-Policy': "default-src 'self'; style-src 'self'; connect-src 'self' https:",
     'Cache-Control': 'no-cache',
   });
   fs.createReadStream(file).pipe(res);
@@ -170,7 +170,13 @@ async function handleApi(req, res, url) {
     if (dev.id) devices.set(dev.id, { name: dev.name || '未命名设备', lastSyncAt: Date.now(), lastIp: req.socket.remoteAddress });
     // 1) push 落地（LWW / uuid 并集 / 计数推导，事务原子）
     const applied = db.applySyncBatch({ words: body.words || [], queries: body.queries || [] });
-    // 2) 同一响应里带回 pull 增量：游标用「>=」+ 幂等合并，重复收发无副作用
+    // 2) 用户属性互通：vocabLevel 按 takenAt 新者胜（两端谁测都行，互通后个性化释义两端一致）
+    const mine = config.load().vocabLevel;
+    const theirs = body.meta && body.meta.vocabLevel;
+    if (theirs && theirs.takenAt && (!mine || !mine.takenAt || theirs.takenAt > mine.takenAt)) {
+      config.update({ vocabLevel: theirs });
+    }
+    // 3) 同一响应里带回 pull 增量：游标用「>=」+ 幂等合并，重复收发无副作用
     // serverTime 必须在读增量之前取：读之后再落库的行 srv_at > serverTime，下轮必被拉到（防漏）
     const serverTime = Date.now();
     const cw = Number(body.cursors?.words) || 0;
@@ -182,6 +188,7 @@ async function handleApi(req, res, url) {
       applied,
       words,
       queries,
+      meta: { vocabLevel: config.load().vocabLevel },
       serverTime,
     });
   }
