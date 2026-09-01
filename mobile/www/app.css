@@ -217,35 +217,34 @@ input[type=range].set-input { padding: 0; height: 28px; accent-color: var(--acce
 .q-level { color: #b45309; font-size: 12px; margin-top: 4px; }
 
 /* ---------- 划词悬浮卡模式 ----------
-   全屏 WebView + CSS 半透明压暗层（rgba 在所有设备可靠渲染）+ 白色卡片面板。
-   压暗后源应用内容仍然可见；面板宽度由 --card-w 控制（设置页滑杆） */
+   CardActivity 是真对话框窗口（windowIsFloating）：窗口本身只有卡片大小，
+   窗口外由系统合成，必然露出源应用 + 对话框压暗；body 即卡片表面 */
 html.card-mode, body.card-mode { height: 100%; }
 body.card-mode {
-  background: rgba(0, 0, 0, .5);
-  padding: calc(env(safe-area-inset-top) + 38px) 14px 16px;
-  overflow: hidden;
+  background: var(--card);
+  padding: 40px 14px 12px;
+  overflow-y: auto;
 }
 body.card-mode .tabbar,
 body.card-mode .top,
 body.card-mode .sync-line { display: none; }
 body.card-mode .page {
-  height: 100%; padding: 0;
-  width: var(--card-w, 72%); margin: 0 auto;
-  background: var(--card); border-radius: 16px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, .35);
-  overflow-y: auto; position: relative;
+  padding: 0; height: auto; max-height: none;
+  width: auto; margin: 0; background: none;
+  border-radius: 0; box-shadow: none;
 }
 body.card-mode #tab-review,
 body.card-mode #tab-words,
 body.card-mode #tab-settings { display: none !important; }
 body.card-mode #tab-query {
   display: block; background: none; box-shadow: none;
-  padding: 44px 16px 12px; max-height: none; position: relative;
+  /* 顶部预留 ✕ 标题行 */
+  padding: 34px 0 4px; max-height: none; position: relative;
 }
 body.card-mode .q-form { margin: 0 0 10px; }
 body.card-mode .q-card { flex: none; max-height: none; box-shadow: none; border: none; padding: 0 0 4px; background: none; }
 body.card-mode .card-close {
-  position: absolute; top: 10px; right: 10px; z-index: 5;
+  position: absolute; top: 0; right: 0; z-index: 5;
   width: 30px; height: 30px; border: none; border-radius: 50%;
   background: var(--bg); color: var(--muted); font-size: 14px; cursor: pointer;
 }

@@ -20,11 +20,15 @@
         <item name="android:background">@drawable/splash</item>
     </style>
 
-    <!-- 划词悬浮卡：透明窗口 + 半透明黑窗口背景（自带压暗，不依赖 backgroundDim——实测其不渲染） -->
+    <!-- 划词悬浮卡：真正的对话框窗口——窗口本身只有卡片大小（系统合成，窗口外必然露出源应用），
+         压暗用对话框标准机制 backgroundDim，圆角白底用 shape drawable -->
     <style name="CardTheme" parent="AppTheme.NoActionBar">
+        <item name="android:windowIsFloating">true</item>
         <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">#59000000</item>
+        <item name="android:windowBackground">@drawable/card_bg</item>
         <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
         <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
         <item name="android:windowContentOverlay">@null</item>
     </style>

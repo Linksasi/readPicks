@@ -502,9 +502,10 @@ function cardSize() {
   return v >= 60 && v <= 100 ? v : 72;
 }
 
-/** 应用卡片宽度（CSS 变量驱动，压暗层/面板全部 CSS 绘制，任何设备可靠） */
+/** 卡片宽度滑杆 → 原生窗口尺寸（浮窗本体由原生 setLayout 控制） */
 function applyCardSize() {
-  document.documentElement.style.setProperty('--card-w', cardSize() + '%');
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  if (P && P.setCardSize) P.setCardSize({ widthPct: cardSize() });
 }
 
 function enterCardMode() {
