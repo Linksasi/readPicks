@@ -1,5 +1,7 @@
 package com.readpicks.app;
 
+import android.content.Intent;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -29,5 +31,14 @@ public class SelectionPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("running", ReadPicksAccessibilityService.running);
         call.resolve(r);
+    }
+
+    /** 跳转系统无障碍设置（语境服务只能由用户在系统设置里开启） */
+    @PluginMethod
+    public void openAccessibilitySettings(PluginCall call) {
+        Intent i = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i);
+        call.resolve();
     }
 }

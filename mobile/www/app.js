@@ -495,12 +495,28 @@ function extractSentence(text, idx, len) {
 // ---------- 划词悬浮卡模式（CardActivity 拉起：隐藏主导航，只渲染查词卡，关闭即回到源应用） ----------
 
 let cardMode = false;
+const CARD_SIZE_KEY = 'rp-card-size';
+
+function cardSize() {
+  const v = Number(localStorage.getItem(CARD_SIZE_KEY));
+  return v >= 60 && v <= 100 ? v : 94;
+}
+
+/** 应用用户设置的大小：宽度按屏幕百分比，高度略缩保出上下留白 */
+function applyCardSize() {
+  if (!cardMode) return;
+  const pct = cardSize();
+  const q = $('tab-query');
+  q.style.width = pct + '%';
+  q.style.maxHeight = Math.max(45, pct - 8) + '%';
+}
 
 function enterCardMode() {
-  if (cardMode) return;
+  if (cardMode) { applyCardSize(); return; }
   cardMode = true;
   document.body.classList.add('card-mode');
   switchTab('query');
+  applyCardSize();
   const close = el('button', 'card-close', '✕');
   close.onclick = () => closeCard();
   $('tab-query').appendChild(close);
@@ -602,6 +618,8 @@ async function refreshSettings() {
   $('pair-card').classList.toggle('hidden', paired);
   $('set-device').textContent = localStorage.getItem('rp-device-name') || deviceName();
   $('set-server').textContent = paired ? (cfg.serverUrl || rpsync.apiBase()) : '未配对（离线模式）';
+  refreshCardSize();
+  refreshA11y();
   const last = await rpdb.getMeta('lastSyncAt', 0);
   $('set-lastsync').textContent = last ? new Date(last).toLocaleString('zh-CN') : '从未';
   const lvl = await rpdb.getMeta('vocabLevel', null);
@@ -695,6 +713,45 @@ $('unbind').onclick = () => {
   refreshSettings();
   refreshSyncLine();
 };
+
+$('unbind').onclick = () => {
+  if (!confirm('解除配对？本机生词数据保留，仅清除连接信息。')) return;
+  localStorage.removeItem('rp-sync');
+  refreshSettings();
+  refreshSyncLine();
+};
+
+// ---------- 悬浮卡大小 + 划词语境引导 ----------
+
+async function refreshA11y() {
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Selection;
+  if (!P || !P.isRunning) {
+    $('a11y-status').textContent = '浏览器不可用（APK 内有效）';
+    $('a11y-open').classList.add('hidden');
+    return;
+  }
+  try {
+    const r = await P.isRunning();
+    $('a11y-status').textContent = r && r.running ? '✓ 已开启' : '未开启';
+  } catch { $('a11y-status').textContent = '未知'; }
+}
+
+$('a11y-open').onclick = () => {
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Selection;
+  if (P && P.openAccessibilitySettings) P.openAccessibilitySettings();
+};
+
+function refreshCardSize() {
+  const pct = cardSize();
+  $('card-size').value = pct;
+  $('card-size-val').textContent = pct + '%';
+}
+
+$('card-size').addEventListener('input', () => {
+  localStorage.setItem(CARD_SIZE_KEY, $('card-size').value);
+  $('card-size-val').textContent = $('card-size').value + '%';
+  applyCardSize();
+});
 
 // ---------- 事件绑定 ----------
 

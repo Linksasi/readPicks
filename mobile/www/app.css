@@ -145,6 +145,8 @@ body {
 .set-row b { font-weight: 600; word-break: break-all; text-align: right; }
 .set-title { font-size: 14px; font-weight: 700; padding: 10px 0 8px; }
 .llm-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 4px 0 10px; }
+.llm-row b { margin-left: auto; color: var(--accent); }
+input[type=range].set-input { padding: 0; height: 28px; accent-color: var(--accent); }
 .set-input {
   width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px;
   background: var(--bg); color: var(--fg); font-size: 14px; outline: none; user-select: text;
@@ -193,7 +195,8 @@ body {
 /* ---------- 查询 ---------- */
 .q-form { display: flex; gap: 8px; margin: 4px 0 8px; }
 #q-input {
-  flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: 11px;
+  flex: 1; min-width: 0; /* 允许收缩：否则输入框固有宽度顶住，查按钮被挤出卡片 */
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: 11px;
   background: var(--card); color: var(--fg); font-size: 15px; outline: none; user-select: text;
 }
 #q-input:focus { border-color: var(--accent); }
@@ -229,7 +232,8 @@ body.card-mode #tab-settings { display: none !important; }
 body.card-mode #tab-query {
   display: flex; flex-direction: column;
   background: var(--card); border-radius: 16px;
-  padding: 14px 16px 12px; overflow-y: auto;
+  /* 顶部预留 ✕ 标题行，避免关闭钮压住查按钮 */
+  padding: 46px 16px 12px; overflow-y: auto;
   box-shadow: 0 12px 48px rgba(0, 0, 0, .35);
   max-height: 100%;
 }
