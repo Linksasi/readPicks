@@ -680,9 +680,14 @@ document.addEventListener('click', (e) => {
 // ---------- 启动 ----------
 
 (async () => {
-  await rpdb.open();
-  deviceName();
-  setupProcessText(); // APK：系统选择菜单「拾词」→ 预填查询
-  if (rpsync.isPaired()) showMain();
-  else showPair();
+  try {
+    await rpdb.open();
+    deviceName();
+    setupProcessText(); // APK：系统选择菜单「拾词」→ 预填查询
+    if (rpsync.isPaired()) showMain();
+    else showPair();
+  } catch (e) {
+    if (window.rpboot) window.rpboot.show('初始化失败：' + ((e && e.message) || e));
+    showPair(); // 兜底：至少让配对页可见可操作
+  }
 })();

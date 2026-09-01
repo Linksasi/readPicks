@@ -128,7 +128,7 @@ async function recordLookup({ word, phonetic = '', definition = '', context = nu
 async function addEvent(q) {
   const seq = (await getMeta('localSeq', 0)) + 1;
   await setMeta('localSeq', seq);
-  const uuid = crypto.randomUUID();
+  const uuid = window.rpuuid(); // boot.js 提供（randomUUID 回退）
   await tx(['queries'], 'readwrite', (t) => {
     t.objectStore('queries').put({ uuid, srv_at: 0, ...q });
   });

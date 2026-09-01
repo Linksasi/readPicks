@@ -101,7 +101,7 @@ async function eventsSince(sinceSeq) {
 function deviceId() {
   let id = localStorage.getItem('rp-device-id');
   if (!id) {
-    id = crypto.randomUUID();
+    id = window.rpuuid(); // boot.js 提供（randomUUID 回退）
     localStorage.setItem('rp-device-id', id);
   }
   return id;

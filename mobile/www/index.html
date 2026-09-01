@@ -8,9 +8,11 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+  <!-- 启动诊断条：JS 错误上屏（防白屏不可诊断），boot.js 控制显隐 -->
+  <div id="boot-error" class="boot-error hidden"></div>
 
-  <!-- 配对页（未配对时显示） -->
-  <div id="page-pair" class="page hidden">
+  <!-- 配对页（默认可见：即使启动 JS 失败也有内容可看） -->
+  <div id="page-pair" class="page">
     <div class="pair-hero">
       <div class="pair-logo">📖</div>
       <div class="pair-title">拾词</div>
@@ -117,6 +119,7 @@
     </nav>
   </div>
 
+<script src="boot.js"></script>
 <script src="vendor/supermemo.js"></script>
 <script src="en-def.js"></script>
 <script src="llm.js"></script>
