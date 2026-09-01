@@ -450,7 +450,7 @@ async function captureSelectionContext(word) {
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Selection;
   if (!P) return null; // 浏览器/PWA 无原生层
   try {
-    const r = await P.getRecent();
+    const r = await P.getRecent({ word });
     if (!r || !r.text) return null;
     if (Date.now() - Number(r.at) > 120000) return null; // 2 分钟内的选中才算语境
     const m = findWordInText(r.text, word, Number(r.start) || 0);

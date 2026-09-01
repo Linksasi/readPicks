@@ -17,6 +17,12 @@ public class SelectionPlugin extends Plugin {
 
     @PluginMethod
     public void getRecent(PluginCall call) {
+        String word = call.getString("word") == null ? "" : call.getString("word");
+        // 缓存为空或过期时主动扫描窗口树兜底（静态文本/网页的选区事件可能不触发或不带下标）
+        long age = System.currentTimeMillis() - SelectionHolder.at;
+        if (SelectionHolder.text == null || age > 90_000) {
+            ReadPicksAccessibilityService.scanSelectionIntoHolder(word);
+        }
         JSObject r = new JSObject();
         r.put("text", SelectionHolder.text == null ? "" : SelectionHolder.text);
         r.put("start", SelectionHolder.start);

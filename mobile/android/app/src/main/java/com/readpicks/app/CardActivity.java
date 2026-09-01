@@ -19,9 +19,16 @@ public class CardActivity extends BridgeActivity {
         registerPlugin(ProcessTextPlugin.class);
         registerPlugin(SelectionPlugin.class);
         super.onCreate(savedInstanceState);
-        // WebView 透明：让卡片背后的原生压暗层/源应用透出来
+        // WebView 透明：让卡片背后的原生压暗层/源应用透出来。
+        // 部分设备 WebView 会在导航/恢复时重置为白底，onCreate+onResume 双保险。
         getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         forwardProcessText(getIntent());
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
     }
 
     @Override

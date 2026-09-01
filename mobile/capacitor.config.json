@@ -2,7 +2,9 @@
   "appId": "com.readpicks.app",
   "appName": "拾词",
   "webDir": "www",
+  "backgroundColor": "#00FFFFFF",
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": true,
+    "backgroundColor": "#00FFFFFF"
   }
 }
