@@ -23,6 +23,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+        </activity>
+
+        <!-- 划词悬浮卡：对话框式半透明 Activity，浮在源应用上，关闭即回到阅读处 -->
+        <activity
+            android:name=".CardActivity"
+            android:label="@string/app_name"
+            android:theme="@style/CardTheme"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
+
             <!-- 划词入口：任何应用选中文本后，系统选择菜单出现「拾词」 -->
             <intent-filter>
                 <action android:name="android.intent.action.PROCESS_TEXT" />

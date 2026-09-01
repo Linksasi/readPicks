@@ -213,6 +213,35 @@ body {
 .q-card .q-add:disabled { opacity: .65; }
 .q-level { color: #b45309; font-size: 12px; margin-top: 4px; }
 
+/* ---------- 划词悬浮卡模式（CardActivity 半透明窗口内渲染） ---------- */
+body.card-mode {
+  background: rgba(15, 23, 42, .32); /* 压暗四周，聚焦卡片本体 */
+  padding: calc(env(safe-area-inset-top) + 46px) 10px 12px;
+  overflow: hidden;
+}
+body.card-mode .tabbar,
+body.card-mode .top,
+body.card-mode .sync-line { display: none; }
+body.card-mode .page { padding: 0; }
+body.card-mode #tab-review,
+body.card-mode #tab-words,
+body.card-mode #tab-settings { display: none !important; }
+body.card-mode #tab-query {
+  display: flex; flex-direction: column;
+  background: var(--card); border-radius: 16px;
+  padding: 14px 16px 12px; overflow-y: auto;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .35);
+  max-height: 100%;
+}
+body.card-mode .q-card { flex: none; max-height: none; box-shadow: none; border: none; padding: 0 0 4px; background: none; }
+body.card-mode .q-form { margin: 0 0 10px; }
+body.card-mode .card-close {
+  position: absolute; top: 6px; right: 6px; z-index: 5;
+  width: 30px; height: 30px; border: none; border-radius: 50%;
+  background: var(--bg); color: var(--muted); font-size: 14px; cursor: pointer;
+}
+body.card-mode #tab-query { position: relative; }
+
 /* ---------- 底部导航 ---------- */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0;

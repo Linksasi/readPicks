@@ -440,6 +440,7 @@ async function addToWordbook(p) {
   }
   $('q-src').textContent = '✓ 已加入生词本' + (p.context ? ' · 带语境句' : '');
   runSync(false);
+  if (cardMode) setTimeout(closeCard, 1400); // 悬浮卡：入库后稍候自动关闭回阅读处
   return true;
 }
 
@@ -491,13 +492,39 @@ function extractSentence(text, idx, len) {
   return text.slice(s, e).trim().replace(/\s+/g, ' ');
 }
 
+// ---------- 划词悬浮卡模式（CardActivity 拉起：隐藏主导航，只渲染查词卡，关闭即回到源应用） ----------
+
+let cardMode = false;
+
+function enterCardMode() {
+  if (cardMode) return;
+  cardMode = true;
+  document.body.classList.add('card-mode');
+  switchTab('query');
+  const close = el('button', 'card-close', '✕');
+  close.onclick = () => closeCard();
+  $('tab-query').appendChild(close);
+}
+
+function closeCard() {
+  const P = window.Capacitor && window.Capacitor.Plugins;
+  const PT = P && P.ProcessText;
+  if (PT && PT.closeCard) PT.closeCard(); // 原生 finish CardActivity
+  else if (P && P.App && P.App.exitApp) P.App.exitApp();
+  else window.close(); // 浏览器兜底
+}
+
 // ---------- 划词入口（PROCESS_TEXT：系统选择菜单「拾词」→ 预填查询） ----------
 
 function setupProcessText() {
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
   if (!P) return;
-  if (P.getPending) P.getPending().then((r) => { if (r && r.text) prefillQuery(r.text); }).catch(() => {});
-  if (P.addListener) P.addListener('processText', (d) => { if (d && d.text) prefillQuery(d.text); });
+  const handle = (d) => {
+    if (d && d.card) enterCardMode();
+    if (d && d.text) prefillQuery(d.text);
+  };
+  if (P.getPending) P.getPending().then(handle).catch(() => {});
+  if (P.addListener) P.addListener('processText', handle);
 }
 
 function prefillQuery(text) {

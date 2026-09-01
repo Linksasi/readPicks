@@ -17,7 +17,7 @@ PC 是同步中枢（设置 → 同步 → 启动），手机浏览器扫码即�
 
 `mobile/android/` 是完整 Capacitor 8 工程，**已内置**：
 
-- `PROCESS_TEXT` 划词入口：任何 App 里选中文字 → 系统菜单出现「拾词」→ 预填查询
+- `PROCESS_TEXT` 划词入口 → **悬浮卡**（`CardActivity` 对话框式半透明 Activity）：任何 App 里选中文字 → 系统菜单出现「拾词」→ 查词卡浮在原文上方（背景压暗），关闭/入库后自动回到阅读处，不打断阅读——与 PC 端悬浮窗同一理念
 - 无障碍语境服务（`ReadPicksAccessibilityService`）：监听文本选择事件缓存节点全文，查词入库时自动提取**所在句子**并挖空（划一个词带出整句；需在系统设置里开启无障碍，仅标准 TextView 渲染的 App 有效）
 - 离线 mini 词典 + lemma 词形还原随包分发
 
