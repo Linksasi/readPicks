@@ -504,12 +504,16 @@ function cardSize() {
   return v >= 60 && v <= 100 ? v : 72;
 }
 
-/** 把宽度百分比 + 内容高度同步给原生（原生按此裁切 WebView 为卡片矩形） */
+/** 把宽度百分比 + 内容高度同步给原生（原生按此裁切 WebView 为卡片矩形）。
+    高度封顶为屏幕的 62%：内容超高时卡片内部滚动，保持悬浮形态 */
 function syncCardSize() {
   if (!cardMode) return;
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
   if (!P || !P.setCardSize) return;
-  const h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+  const maxH = Math.round((window.screen.height || 640) * 0.62); // screen.height 与 WebView 实际大小无关，稳定
+  document.body.style.maxHeight = maxH + 'px';
+  document.body.style.overflowY = 'auto';
+  const h = Math.min(document.body.scrollHeight, maxH);
   P.setCardSize({ widthPct: cardSize(), contentHeight: h });
 }
 

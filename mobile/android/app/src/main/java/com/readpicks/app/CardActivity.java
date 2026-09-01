@@ -81,9 +81,9 @@ public class CardActivity extends BridgeActivity {
         lp.setMargins(side, top, side, bottom);
         if (contentHeightCss > 0) {
             int content = Math.round(contentHeightCss * dm.density);
-            lp.height = Math.min(top + content + bottom, screenH - top);
+            lp.height = Math.min(top + content + bottom, Math.round(screenH * 0.72f));
         } else {
-            lp.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            lp.height = Math.round(screenH * 0.62f); // JS 首次回报前的初始高度（避免满屏闪烁）
         }
         lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
         wv.setLayoutParams(lp);
