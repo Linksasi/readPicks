@@ -135,9 +135,19 @@ app.whenReady().then(async () => {
     const page = await fetch(base + '/app/');
     const html = await page.text();
     assert(page.status === 200 && html.includes('拾词') && html.includes('app.js'), '手机端页面经 /app/ 托管');
+    assert((page.headers.get('content-security-policy') || '').includes('api.mymemory.translated.net'), 'CSP 放行 MyMemory（未配对在线兜底可用）');
     assert((await fetch(base + '/', { redirect: 'manual' })).status === 302, '根路径 302 到 /app/');
     const evil = await fetch(base + '/app/..%2f..%2fpackage.json');
     assert(evil.status !== 200 || !(await evil.text()).includes('"main"'), '目录穿越被拒');
+
+    // 直连在线翻译（手机端未配对兜底走的就是这个接口；网络受限时仅警告）
+    try {
+      const mm = await fetch('https://api.mymemory.translated.net/get?q=apple&langpair=en%7Czh-CN');
+      const jd = await mm.json();
+      console.log('INFO mymemory 直连返回:', (jd && jd.responseData && jd.responseData.translatedText) || '无');
+    } catch (e) {
+      console.log('WARN mymemory 直连失败（网络受限时正常）:', e.message);
+    }
 
     sync.stop();
     assert(!sync.status().running, '同步服务停止');

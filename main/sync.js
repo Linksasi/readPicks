@@ -132,8 +132,8 @@ function serveStatic(req, res, urlPath) {
   const ext = path.extname(file).toLowerCase();
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    // 与 renderer 同约定：样式/脚本全部外链，禁内联；connect-src 限同源（同步 API 就在同源）
-    'Content-Security-Policy': "default-src 'self'; style-src 'self'; connect-src 'self'",
+    // 与 renderer 同约定：样式/脚本全部外链，禁内联；connect-src 放行同源（同步 API）+ MyMemory（手机端离线词典未命中时的直连在线翻译兜底）
+    'Content-Security-Policy': "default-src 'self'; style-src 'self'; connect-src 'self' https://api.mymemory.translated.net",
     'Cache-Control': 'no-cache',
   });
   fs.createReadStream(file).pipe(res);

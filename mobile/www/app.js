@@ -274,15 +274,40 @@ async function runQuery(raw) {
         payload = await r.json();
         srcLabel = payload.found ? 'PC 词典' : 'PC 词典（未收录，在线翻译兜底）';
       }
-    } catch { /* 不在局域网：如实降级 */ }
+    } catch { /* 不在局域网：降级到直连在线翻译 */ }
+  }
+  // 3) 直连在线翻译（免费 MyMemory，无需配对）：手机先行/外出时的兜底，翻译质量一般
+  if (!payload) {
+    const t = await mymemoryTranslate(word);
+    if (t) {
+      payload = { word, found: true, phonetic: '', defs: [{ pos: '', def: t }], tags: [], enDefinition: null, simpleDef: null, translated: t };
+      srcLabel = '在线翻译（未连接电脑，仅供参考）';
+    }
   }
 
   card.innerHTML = '';
   if (!payload || (!payload.found && !payload.translated)) {
-    card.appendChild(el('div', 'q-empty', mini ? '离线词典未收录，且当前无法连接电脑端' : '查询失败：先在设置里配对电脑端'));
+    card.appendChild(el('div', 'q-empty', '没查到这个词：离线词典未收录、电脑端不在同一网络、在线翻译也无返回'));
     return;
   }
   renderQueryCard(payload, srcLabel);
+}
+
+/** MyMemory 直连（与 PC translate.js 同款接口）；8 秒超时，失败返回 null */
+async function mymemoryTranslate(text) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=en|zh-CN', { signal: ctrl.signal });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const t = data && data.responseData && data.responseData.translatedText;
+    return t ? String(t) : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function renderQueryCard(p, srcLabel) {
