@@ -152,6 +152,20 @@ body {
 .btn.danger { background: #fee2e2; color: #b91c1c; margin-top: 14px; }
 .set-hint { color: var(--muted); font-size: 12px; line-height: 1.8; margin-top: 10px; }
 
+/* ---------- 词汇量自测 ---------- */
+.btn.ghost { background: var(--chip-bg); color: var(--accent); }
+.btn-row-plain { padding: 8px 0 4px; }
+.vocab-start { width: 100%; }
+.vocab-progress-row {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--muted); font-size: 12.5px; margin: 8px 0 4px;
+}
+.vocab-progress-row .bar { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.vocab-progress-row .bar div { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .15s; }
+.vocab-word { font-size: 30px; font-weight: 700; text-align: center; padding: 18px 0 10px; letter-spacing: .5px; }
+.vocab-btns { display: flex; gap: 10px; margin: 6px 0 4px; }
+.vocab-btns .btn { flex: 1; }
+
 /* ---------- 配对页 ---------- */
 #page-pair { justify-content: center; gap: 28px; }
 .pair-hero { text-align: center; }

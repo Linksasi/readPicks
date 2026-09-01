@@ -597,6 +597,57 @@ $('llm-save').onclick = () => {
   m.className = 'msg ok';
 };
 
+// ---------- 词汇量自测（与 PC 同算法，结果同步互通） ----------
+
+let vocabSession = null; // { items, answers, idx }
+
+async function vocabShowHome() {
+  vocabSession = null;
+  $('vocab-test').classList.add('hidden');
+  $('vocab-home').classList.remove('hidden');
+  const lvl = await rpdb.getMeta('vocabLevel', null);
+  $('set-vocab').textContent = lvl && lvl.score ? `约 ${lvl.score} 词（CEFR ${lvl.cefr}）` : '未测';
+  $('vocab-start').textContent = lvl && lvl.score ? '重新测试' : '📊 测词汇量';
+}
+
+$('vocab-start').onclick = async () => {
+  const mini = await loadMiniDict();
+  const s = rpvocab.start(mini);
+  if (!s.ok) {
+    $('set-vocab').textContent = s.error;
+    return;
+  }
+  vocabSession = { items: s.items, answers: [], idx: 0 };
+  $('vocab-home').classList.add('hidden');
+  $('vocab-test').classList.remove('hidden');
+  vocabShowWord();
+};
+
+function vocabShowWord() {
+  const s = vocabSession;
+  $('vocab-word').textContent = s.items[s.idx].word;
+  $('vocab-progress').textContent = `第 ${s.idx + 1} / ${s.items.length} 题`;
+  $('vocab-bar').style.width = ((s.idx / s.items.length) * 100).toFixed(1) + '%';
+}
+
+async function vocabAnswer(known) {
+  const s = vocabSession;
+  if (!s) return;
+  s.answers[s.idx] = known;
+  s.idx++;
+  if (s.idx >= s.items.length) {
+    const r = rpvocab.finish(s.items, s.answers);
+    await rpdb.setMeta('vocabLevel', r);
+    vocabShowHome();
+    $('set-vocab').textContent = `✓ 约 ${r.score} 词（CEFR ${r.cefr}）` + (r.fakeKnown ? ` · 误认伪词 ${r.fakeKnown} 个` : '');
+    runSync(false); // 推给电脑端，两端个性化一致
+  } else {
+    vocabShowWord();
+  }
+}
+$('vocab-known').onclick = () => vocabAnswer(true);
+$('vocab-unknown').onclick = () => vocabAnswer(false);
+
 function deviceName() {
   const ua = navigator.userAgent;
   const m = ua.match(/Android[^;)]*/i);

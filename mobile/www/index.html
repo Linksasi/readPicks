@@ -70,6 +70,24 @@
     <div id="tab-settings" class="tabpane hidden">
       <div class="set-card">
         <div class="set-row"><span>词汇量水平</span><b id="set-vocab">—</b></div>
+        <div id="vocab-home" class="btn-row-plain">
+          <button class="btn ghost vocab-start" id="vocab-start">📊 测词汇量</button>
+        </div>
+        <div id="vocab-test" class="hidden">
+          <div class="vocab-progress-row">
+            <span id="vocab-progress">第 1 / 60 题</span>
+            <div class="bar"><div id="vocab-bar"></div></div>
+          </div>
+          <div class="vocab-word" id="vocab-word">—</div>
+          <p class="set-hint" style="margin-top:0">这个词你认识吗？凭直觉快速判断（混有伪词用于校准）。</p>
+          <div class="vocab-btns">
+            <button class="btn ghost" id="vocab-unknown">✗ 不认识</button>
+            <button class="btn primary" id="vocab-known">✓ 认识</button>
+          </div>
+        </div>
+        <p class="set-hint">约 60 题 · 2 分钟。结果用于查词时生成适合你的简单英语释义与难词标注，测完自动同步到电脑端。</p>
+      </div>
+      <div class="set-card">
         <div class="set-row"><span>设备名</span><b id="set-device"></b></div>
         <div class="set-row"><span>上次同步</span><b id="set-lastsync">—</b></div>
         <div class="set-row"><span>服务端</span><b id="set-server">—</b></div>
@@ -102,6 +120,7 @@
 <script src="vendor/supermemo.js"></script>
 <script src="en-def.js"></script>
 <script src="llm.js"></script>
+<script src="vocab.js"></script>
 <script src="db.js"></script>
 <script src="sync.js"></script>
 <script src="app.js"></script>
