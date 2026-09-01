@@ -501,7 +501,7 @@ const CARD_SIZE_KEY = 'rp-card-size';
 
 function cardSize() {
   const v = Number(localStorage.getItem(CARD_SIZE_KEY));
-  return v >= 60 && v <= 100 ? v : 94;
+  return v >= 60 && v <= 100 ? v : 72;
 }
 
 /** 把宽度百分比 + 内容高度同步给原生（原生按此裁切 WebView 为卡片矩形） */
