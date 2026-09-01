@@ -22,3 +22,6 @@ AGENTS.md
 # 敏感配置（防误提交；真实配置在 %APPDATA%/readpicks/ 下）
 config.json
 *.local.json
+
+# 手机端离线词典（生成物：npx electron scripts/build-mini-dict.js 重建）
+mobile/www/dict/mini.json

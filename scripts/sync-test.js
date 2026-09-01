@@ -89,6 +89,20 @@ app.whenReady().then(async () => {
     const ping = await j('/api/ping', { headers: hdr });
     assert(ping.code === 200 && ping.body.ok, 'ping 鉴权通过');
 
+    // 手机查词端点：词典命中（本地 ECDICT）或未收录（在线翻译兜底），均不带副作用
+    const ecdict = require('../main/ecdict');
+    ecdict.init();
+    const lemmaHit = ecdict.lookup('running');
+    assert(lemmaHit && lemmaHit.matchedBase === 'run', 'lemma 词形还原（解析器修复回归）');
+    const lk = await j('/api/lookup', { method: 'POST', headers: hdr, body: JSON.stringify({ word: 'Apple' }) });
+    assert(lk.code === 200 && lk.body.word === 'apple', 'lookup 归一化小写');
+    assert(lk.body.found === true && Array.isArray(lk.body.defs) && lk.body.defs.length > 0, 'lookup 词典命中返回释义');
+    const lk2 = await j('/api/lookup', { method: 'POST', headers: hdr, body: JSON.stringify({ word: 'zzzznooooword' }) });
+    assert(lk2.code === 200 && (lk2.body.found === false || lk2.body.translated), 'lookup 未收录：离线时 found=false，有网时在线兜底');
+    const totalBefore = db.stats();
+    await j('/api/lookup', { method: 'POST', headers: hdr, body: JSON.stringify({ word: 'apple' }) });
+    assert(db.stats() === totalBefore, 'lookup 不在 PC 生词本入库（手机本地入库）');
+
     // 首次全量 pull（游标 0）→ 收到 syncapple 的词行与事件
     const first = await j('/api/sync', { method: 'POST', headers: hdr, body: JSON.stringify({ device: { id: 'dev-test', name: '测试手机' }, cursors: { words: 0, queries: 0 } }) });
     assert(first.code === 200 && first.body.words.some((x) => x.word === 'syncapple'), '全量 pull 携带词行');

@@ -27,11 +27,12 @@ function showMain() {
 
 function switchTab(name) {
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  for (const t of ['review', 'words', 'settings']) {
+  for (const t of ['review', 'query', 'words', 'settings']) {
     $('tab-' + t).classList.toggle('hidden', t !== name);
   }
-  $('tab-title').textContent = { review: '今日复习', words: '生词本', settings: '设置' }[name];
+  $('tab-title').textContent = { review: '今日复习', query: '查词', words: '生词本', settings: '设置' }[name];
   if (name === 'review') loadReview();
+  if (name === 'query') loadMiniDict(); // 进查询页时预载离线词典
   if (name === 'words') refreshWords();
   if (name === 'settings') refreshSettings();
 }
@@ -209,6 +210,220 @@ function showDone(title, sub) {
   $('tab-title').textContent = '今日复习';
 }
 
+// ---------- 查询（理念：离线秒查优先；英英释义在上中文兜底；查词是积累的起点） ----------
+
+let miniDict = null; // {words, lemma} | false（加载失败标记）
+async function loadMiniDict() {
+  if (miniDict !== null) return miniDict;
+  try {
+    const r = await fetch('dict/mini.json');
+    if (r.ok) miniDict = await r.json();
+  } catch { /* 忽略 */ }
+  if (!miniDict) miniDict = false;
+  return miniDict;
+}
+
+const POS_LABEL = {
+  n: '名词', v: '动词', a: '形容词', s: '形容词', r: '副词', vt: '及物动词', vi: '不及物动词', ad: '副词', u: '感叹', c: '连词',
+};
+const TAG_LABEL = { zk: '中考', gk: '高考', cet4: '四级', cet6: '六级', kaoyan: '考研', toefl: '托福', ielts: '雅思', gre: 'GRE' };
+
+/** ECDICT 行式释义（"n. 苹果\nv. …"）→ [{pos, def}] */
+function parseRows(t) {
+  return String(t || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const m = l.match(/^([a-z]+)\.\s*(.*)$/i);
+    return m ? { pos: m[1].toLowerCase(), def: m[2] } : { pos: '', def: l };
+  });
+}
+
+async function runQuery(raw) {
+  const word = String(raw || '').trim().toLowerCase();
+  if (!word) return;
+  $('q-input').value = word;
+  const card = $('q-card');
+  card.classList.remove('hidden');
+  card.innerHTML = '';
+  card.appendChild(el('div', 'q-loading', '查询中…'));
+  $('q-src').textContent = '';
+
+  // 1) 本地瘦身词典：离线秒查（lemma 词形还原句中词干）
+  let payload = null;
+  let srcLabel = '';
+  const mini = await loadMiniDict();
+  if (mini) {
+    const direct = mini.words[word];
+    const base = direct ? null : (mini.lemma[word] || null);
+    const hit = direct || (base ? mini.words[base] : null);
+    if (hit) {
+      payload = {
+        word: base || word, phonetic: hit.p, defs: parseRows(hit.t),
+        tags: [], enDefinition: null, simpleDef: null, translated: null, found: true,
+      };
+      srcLabel = direct ? '离线词典' : `离线词典（${word} → ${base}）`;
+    }
+  }
+  // 2) PC 端完整词典（局域网；含按词汇水平的英英释义 + LLM 简单释义）
+  if (!payload && rpsync.isPaired()) {
+    try {
+      const r = await fetch(rpsync.apiBase() + '/api/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-sync-token': rpsync.syncConfig().token },
+        body: JSON.stringify({ word }),
+      });
+      if (r.ok) {
+        payload = await r.json();
+        srcLabel = payload.found ? 'PC 词典' : 'PC 词典（未收录，在线翻译兜底）';
+      }
+    } catch { /* 不在局域网：如实降级 */ }
+  }
+
+  card.innerHTML = '';
+  if (!payload || (!payload.found && !payload.translated)) {
+    card.appendChild(el('div', 'q-empty', mini ? '离线词典未收录，且当前无法连接电脑端' : '查询失败：先在设置里配对电脑端'));
+    return;
+  }
+  renderQueryCard(payload, srcLabel);
+}
+
+function renderQueryCard(p, srcLabel) {
+  const card = $('q-card');
+  card.appendChild(el('div', 'word', p.word));
+  if (p.phonetic) card.appendChild(el('div', 'phon', p.phonetic));
+  if (p.tags && p.tags.length) {
+    const tl = el('div', 'tag-line');
+    for (const t of p.tags.slice(0, 6)) tl.appendChild(el('span', 'tag-chip', TAG_LABEL[t] || t));
+    card.appendChild(tl);
+  }
+  // 理念：英文释义在上，中文弱化兜底
+  let hasEn = false;
+  if (p.simpleDef) { card.appendChild(el('div', 'simple-def', p.simpleDef)); hasEn = true; }
+  else if (p.enDefinition && p.enDefinition.senses && p.enDefinition.senses.length) {
+    card.appendChild(renderSenses(p.enDefinition));
+    hasEn = true;
+  }
+  const defs = p.defs && p.defs.length ? p.defs : (p.translated ? [{ pos: '', def: p.translated }] : []);
+  if (defs.length) {
+    const d = el('div', 'back-def', defs.map((x) => (x.pos ? x.pos + '. ' : '') + x.def).join('；'));
+    if (hasEn) d.classList.add('muted');
+    card.appendChild(d);
+  }
+  const addBtn = el('button', 'btn primary q-add', '＋ 加入生词本');
+  addBtn.onclick = async () => {
+    addBtn.disabled = true;
+    const ok = await addToWordbook(p);
+    addBtn.textContent = ok ? '✓ 已加入（同步中）' : '加入失败，请重试';
+    if (!ok) addBtn.disabled = false;
+  };
+  card.appendChild(addBtn);
+  $('q-src').textContent = srcLabel + (p.simpleDef ? ' · 简单释义' : '');
+}
+
+/** 英文义项渲染：难词虚线下划线，点按就地浮层化解 */
+function renderSenses(en) {
+  const hardSet = new Set((en.hard || []).map((x) => String(x).toLowerCase()));
+  const hintMap = new Map((en.hints || []).map((h) => [String(h.word).toLowerCase(), h]));
+  const wrap = el('div', 'en-def-block');
+  for (const s of en.senses) {
+    const row = el('div', 'en-sense');
+    if (s.pos) row.appendChild(el('span', 'pos', POS_LABEL[s.pos] || s.pos + '.'));
+    for (const part of String(s.text || '').split(/([A-Za-z][A-Za-z'-]*)/g)) {
+      if (/^[A-Za-z]/.test(part) && hardSet.has(part.toLowerCase())) {
+        const b = el('button', 'hard-word', part);
+        b.onclick = (ev) => { ev.stopPropagation(); showWordTip(part, hintMap.get(part.toLowerCase())); };
+        row.appendChild(b);
+      } else {
+        row.appendChild(document.createTextNode(part));
+      }
+    }
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+/** 入库（手机本地）→ 触发同步回流 PC。无障碍缓存里若有该词语境，一并入库（语境永远在场） */
+async function addToWordbook(p) {
+  const ctx = await captureSelectionContext(p.word);
+  try {
+    await rpdb.recordLookup({
+      word: p.word,
+      phonetic: p.phonetic || '',
+      definition: (p.defs || []).map((x) => (x.pos ? x.pos + '. ' : '') + x.def).join('\n') || p.translated || '',
+      context: ctx ? ctx.context : null,
+      contextCloze: ctx ? ctx.cloze : null,
+      simpleDef: p.simpleDef || null,
+      source: 'mobile',
+    });
+  } catch (e) {
+    console.error('入库失败', e);
+    return false;
+  }
+  $('q-src').textContent = '✓ 已加入生词本' + (ctx ? ' · 带语境句' : '');
+  runSync(false);
+  return true;
+}
+
+// ---------- 划词语境（无障碍服务缓存 → 句子提取 + 挖空） ----------
+
+async function captureSelectionContext(word) {
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Selection;
+  if (!P) return null; // 浏览器/PWA 无原生层
+  try {
+    const r = await P.getRecent();
+    if (!r || !r.text) return null;
+    if (Date.now() - Number(r.at) > 120000) return null; // 2 分钟内的选中才算语境
+    const m = findWordInText(r.text, word, Number(r.start) || 0);
+    if (!m) return null;
+    const sentence = extractSentence(r.text, m.index, m.length);
+    if (!sentence || sentence.length < word.length + 2) return null;
+    // 在归一化后的句子上替换首个匹配（避免空白归一化导致的索引偏移）
+    const esc = r.text.slice(m.index, m.index + m.length).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const clozeRe = new RegExp('(^|[^A-Za-z])(' + esc + ')', 'i');
+    if (!clozeRe.test(sentence)) return null;
+    const cloze = sentence.replace(clozeRe, (all, pre, hit) => pre + '{{c1::' + hit + '}}');
+    return { context: sentence, cloze };
+  } catch { return null; }
+}
+
+function findWordInText(text, word, near) {
+  const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(^|[^A-Za-z])(' + esc + ')([^A-Za-z]|$)', 'gi');
+  let first = null;
+  let m;
+  while ((m = re.exec(text))) {
+    const idx = m.index + m[1].length;
+    if (first === null) first = { index: idx, length: m[2].length };
+    if (near >= idx && near <= idx + m[2].length) return { index: idx, length: m[2].length }; // 选中位置优先
+  }
+  return first;
+}
+
+function sentenceStart(text, idx) {
+  let s = idx;
+  while (s > 0 && !/[.!?;。！？；\n]/.test(text[s - 1])) s--;
+  return s;
+}
+
+function extractSentence(text, idx, len) {
+  const s = sentenceStart(text, idx);
+  let e = idx + len;
+  while (e < text.length && !/[.!?;。！？；\n]/.test(text[e])) e++;
+  return text.slice(s, e).trim().replace(/\s+/g, ' ');
+}
+
+// ---------- 划词入口（PROCESS_TEXT：系统选择菜单「拾词」→ 预填查询） ----------
+
+function setupProcessText() {
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  if (!P) return;
+  if (P.getPending) P.getPending().then((r) => { if (r && r.text) prefillQuery(r.text); }).catch(() => {});
+  if (P.addListener) P.addListener('processText', (d) => { if (d && d.text) prefillQuery(d.text); });
+}
+
+function prefillQuery(text) {
+  switchTab('query');
+  runQuery(text);
+}
+
 // ---------- 难词浮层（手机端简化：底部浮出，仅展示已有提示） ----------
 
 let tipEl = null;
@@ -304,6 +519,7 @@ $('card').onclick = flip;
 document.querySelectorAll('#actions button').forEach((btn) => {
   btn.addEventListener('click', () => answer(btn.id));
 });
+$('q-form').addEventListener('submit', (e) => { e.preventDefault(); runQuery($('q-input').value); });
 // 难词/浮层：点击空白处关闭
 document.addEventListener('click', (e) => {
   if (tipEl && !tipEl.contains(e.target)) closeWordTip();
@@ -314,6 +530,7 @@ document.addEventListener('click', (e) => {
 (async () => {
   await rpdb.open();
   deviceName();
+  setupProcessText(); // APK：系统选择菜单「拾词」→ 预填查询
   if (rpsync.isPaired()) showMain();
   else showPair();
 })();

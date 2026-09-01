@@ -9,6 +9,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 const config = require('./config');
 const db = require('./db');
+const ecdict = require('./ecdict');
+const translate = require('./translate');
+const vocab = require('./vocabtest');
+const { buildEnDefinition } = require('./en-def');
 
 let server = null;
 const devices = new Map(); // deviceId -> { name, lastSyncAt, lastIp }（内存态，重启清零，仅供状态展示）
@@ -57,6 +61,58 @@ function tokenOk(req) {
     crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
 }
 
+/** 手机端查词（与 PC lookupWord 同源词典/释义逻辑，但不入库） */
+async function lookupForMobile(rawWord) {
+  const word = String(rawWord || '').trim().toLowerCase();
+  const payload = {
+    word, found: false,
+    phonetic: '', defs: [], tags: [], collins: 0, oxford: 0,
+    enDefinition: null, vocabLevel: null, wordLevel: null,
+    simpleDef: null, translated: null,
+  };
+  if (!word) return payload;
+
+  const dict = ecdict.lookup(word);
+  if (dict) {
+    payload.found = true;
+    payload.phonetic = dict.phonetic;
+    payload.defs = ecdict.parseTranslation(dict.translation);
+    payload.tags = dict.tags;
+    payload.collins = dict.collins;
+    payload.oxford = dict.oxford;
+    const en = buildEnDefinition(dict);
+    if (en) {
+      payload.enDefinition = { senses: en.senses, hard: en.hard, hints: en.hints };
+      payload.vocabLevel = en.vocabLevel;
+      payload.wordLevel = vocab.wordLevel(dict.bnc, en.vocabLevel.score);
+    }
+  }
+
+  // LLM 简单英语释义（PC 已配置 LLM 且测过词汇量时；理念：用简单英语理解英语）
+  if (!payload.simpleDef) {
+    const cfg = config.load();
+    if (cfg.vocabLevel && cfg.vocabLevel.score && cfg.provider === 'llm' && cfg.providers.llm?.apiKey) {
+      try {
+        const sd = await translate.simpleDefinition(word);
+        if (sd) payload.simpleDef = sd.simpleDef;
+      } catch { /* 简单释义失败不阻塞查词 */ }
+    }
+  }
+
+  // 词典未收录 → 在线翻译兜底
+  if (!dict) {
+    try {
+      const r = await translate.translateSentence(word);
+      if (r.translation) {
+        payload.found = true;
+        payload.translated = r.translation;
+        payload.defs = [{ pos: '', def: r.translation }];
+      }
+    } catch { /* 离线/网络失败如实返回未找到 */ }
+  }
+  return payload;
+}
+
 function json(res, code, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -99,6 +155,13 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === '/api/ping' && req.method === 'GET') {
     return json(res, 200, { ok: true, app: 'readpicks', total: db.stats(), due: db.dueCount() });
+  }
+
+  // 手机查词：复用 PC 的本地词典 + 按词汇水平的英英释义 + LLM 简单释义/在线翻译兜底。
+  // 只读不出题：不在 PC 生词本入库（手机本地 recordLookup 后经同步回流）
+  if (url.pathname === '/api/lookup' && req.method === 'POST') {
+    const body = await readBody(req);
+    return json(res, 200, await lookupForMobile(String(body.word || '')));
   }
 
   if (url.pathname === '/api/sync' && req.method === 'POST') {
@@ -200,4 +263,4 @@ function pairQR() {
   return { svg: qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }), url: st.pairUrl };
 }
 
-module.exports = { start, stop, status, pairQR, ensureToken, lanIP };
+module.exports = { start, stop, status, pairQR, ensureToken, lanIP, lookupForMobile };

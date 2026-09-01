@@ -35,10 +35,14 @@ function loadLemma() {
     if (!fs.existsSync(LEMMA_PATH())) return;
     const raw = fs.readFileSync(LEMMA_PATH(), 'utf8');
     for (const line of raw.split('\n')) {
-      const m = line.trim().split('\t');
-      if (m.length >= 2 && m[0] && m[1]) {
-        // 第一列=词形，第二列=原形（小写归一）
-        lemma.set(m[0].toLowerCase(), m[1].toLowerCase());
+      // 官方 lemma.en.txt 格式：`be/4109826 -> is,was,are,...`（原形/频次 -> 变形列表）；; 开头为注释
+      const m = line.match(/^([^/;\s][^/]*)\/\d+\s*->\s*(.+)$/);
+      if (!m) continue;
+      const base = m[1].trim().toLowerCase();
+      if (!base) continue;
+      for (const f of m[2].split(',')) {
+        const form = f.trim().toLowerCase();
+        if (form && form !== base) lemma.set(form, base);
       }
     }
   } catch (e) {

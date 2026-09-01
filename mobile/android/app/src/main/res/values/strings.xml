@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">拾词</string>
+    <string name="title_activity_main">拾词</string>
+    <string name="package_name">com.readpicks.app</string>
+    <string name="custom_url_scheme">com.readpicks.app</string>
+    <string name="accessibility_label">拾词划词语境</string>
+    <string name="accessibility_desc">开启后，在其他应用里选中单词即可带出所在句子作为语境（拾词只读取选中文本，不上传任何数据，数据仅在你的电脑与手机之间同步）。</string>
+</resources>

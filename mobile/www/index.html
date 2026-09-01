@@ -50,6 +50,16 @@
       </div>
     </div>
 
+    <!-- 查询 -->
+    <div id="tab-query" class="tabpane hidden">
+      <form id="q-form" class="q-form">
+        <input type="text" id="q-input" placeholder="输入单词或短语…" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+        <button class="q-go" type="submit">查</button>
+      </form>
+      <p class="q-src" id="q-src"></p>
+      <div id="q-card" class="card q-card hidden"></div>
+    </div>
+
     <!-- 词表 -->
     <div id="tab-words" class="tabpane hidden">
       <div class="stats-line" id="words-stats"></div>
@@ -70,6 +80,7 @@
     <!-- 底部导航 -->
     <nav class="tabbar">
       <button data-tab="review" class="active">🔁 复习</button>
+      <button data-tab="query">🔍 查询</button>
       <button data-tab="words">🗂️ 词表</button>
       <button data-tab="settings">⚙️ 设置</button>
     </nav>

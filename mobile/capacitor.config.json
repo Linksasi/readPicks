@@ -1,0 +1,8 @@
+{
+  "appId": "com.readpicks.app",
+  "appName": "拾词",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true
+  }
+}
