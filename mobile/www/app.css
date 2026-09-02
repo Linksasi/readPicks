@@ -60,6 +60,14 @@ body {
 }
 .card .hint { color: var(--muted); font-size: 12.5px; }
 .word { font-size: 32px; font-weight: 700; }
+.q-title-row { display: flex; align-items: center; gap: 10px; }
+.q-title-row .word { flex: 1; min-width: 0; word-break: break-all; }
+.speak-btn {
+  flex: none; width: 38px; height: 38px; border: 1px solid var(--border);
+  border-radius: 50%; background: var(--chip-bg); font-size: 16px;
+  cursor: pointer; line-height: 1;
+}
+#word-search { margin-bottom: 10px; }
 .cloze { font-size: 17.5px; line-height: 1.65; }
 .cloze .blank { color: var(--accent); font-weight: 600; }
 .phon { color: var(--muted); }

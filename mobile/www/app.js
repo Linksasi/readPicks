@@ -142,7 +142,10 @@ async function render() {
 
   const back = $('back');
   back.innerHTML = '';
-  back.appendChild(el('div', 'word', w.word));
+  const wordRow = el('div', 'q-title-row');
+  wordRow.appendChild(el('div', 'word', w.word));
+  wordRow.appendChild(speakBtn(w.word));
+  back.appendChild(wordRow);
   if (w.phonetic) back.appendChild(el('div', 'phon', w.phonetic));
   let hasEn = false;
   if (ctx && ctx.simple_def) {
@@ -367,7 +370,10 @@ async function mymemoryTranslate(text) {
 
 function renderQueryCard(p, srcLabel) {
   const card = $('q-card');
-  card.appendChild(el('div', 'word', p.word));
+  const titleRow = el('div', 'q-title-row');
+  titleRow.appendChild(el('div', 'word', p.word));
+  titleRow.appendChild(speakBtn(p.word));
+  card.appendChild(titleRow);
   if (p.phonetic) card.appendChild(el('div', 'phon', p.phonetic));
   if (p.tags && p.tags.length) {
     const tl = el('div', 'tag-line');
@@ -514,6 +520,20 @@ function extractSentence(text, idx, len) {
   return text.slice(s, e).trim().replace(/\s+/g, ' ');
 }
 
+/** TTS 发音：优先原生系统 TTS（WebView 无 speechSynthesis），浏览器回退 Web Speech API */
+function speak(text) {
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  if (P && P.speak) { P.speak({ text }); return; }
+  try {
+    if (!window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    u.rate = 0.9;
+    speechSynthesis.speak(u);
+  } catch { /* 无 TTS 引擎：忽略 */ }
+}
+
 // ---------- 划词悬浮卡模式（CardActivity 拉起：隐藏主导航，只渲染查词卡，关闭即回到源应用） ----------
 
 let cardMode = false;
@@ -567,7 +587,16 @@ function setupProcessText() {
 
 function prefillQuery(text) {
   switchTab('query');
-  runQuery(text);
+  const t = (text || '').trim();
+  // 长句（分享/划入）不自动当单词查：填入输入框 + 记为语境源，改到要查的词后查
+  if (t.split(/\s+/).length >= 2 && t.length > 12) {
+    clipSentence = t;
+    $('q-input').value = t;
+    $('q-input').focus();
+    $('q-src').textContent = '已粘贴句子：删到要查的词后查（自动带整句语境）';
+    return;
+  }
+  runQuery(t);
 }
 
 // ---------- 难词浮层（手机端简化：底部浮出，仅展示已有提示） ----------
@@ -585,6 +614,12 @@ function showWordTip(word, hint) {
 }
 function closeWordTip() {
   if (tipEl) { tipEl.remove(); tipEl = null; }
+}
+
+function speakBtn(word) {
+  const b = el('button', 'speak-btn', '🔊');
+  b.onclick = (ev) => { ev.stopPropagation(); speak(word); };
+  return b;
 }
 
 // ---------- DOM 工具 ----------
@@ -608,15 +643,17 @@ function escapeHtml(s) {
 // ---------- 词表 ----------
 
 async function refreshWords() {
+  const q = ($('word-search').value || '').trim().toLowerCase();
   const st = await rpdb.stats();
   $('words-stats').innerHTML = '';
   $('words-stats').appendChild(el('span', 'stat-chip', `共 ${st.total} 个生词`));
   $('words-stats').appendChild(el('span', 'stat-chip', `${st.due} 个待复习`));
   const list = $('words-list');
   list.innerHTML = '';
-  const words = await rpdb.allWords();
+  let words = await rpdb.allWords();
+  if (q) words = words.filter((w) => w.word.includes(q));
   if (!words.length) {
-    list.appendChild(el('div', 'empty', '📭 生词本还是空的 —— 在电脑端划词积累后，点右上角「同步」拉过来'));
+    list.appendChild(el('div', 'empty', q ? '没有匹配的生词' : '📭 生词本还是空的 —— 在电脑端划词积累后，点右上角「同步」拉过来'));
     return;
   }
   for (const w of words) {
@@ -904,6 +941,7 @@ document.querySelectorAll('#actions button').forEach((btn) => {
   btn.addEventListener('click', () => answer(btn.id));
 });
 $('q-form').addEventListener('submit', (e) => { e.preventDefault(); runQuery($('q-input').value); });
+$('word-search').addEventListener('input', () => refreshWords());
 // 难词/浮层：点击空白处关闭
 document.addEventListener('click', (e) => {
   if (tipEl && !tipEl.contains(e.target)) closeWordTip();
@@ -918,6 +956,7 @@ document.addEventListener('click', (e) => {
     applyFontScale();
     setupProcessText(); // APK：系统选择菜单「拾词」/ 分享 / 悬浮球 → 悬浮卡
     showMain(); // 始终进入主界面：查词/复习离线独立可用，配对在设置页
+    loadMiniDict(); // 离线词典后台预载（消除首次查词等待）
     // 悬浮球上次开着的话 → 恢复启动（服务随 App 关闭而停止，这里重新拉起）
     if (localStorage.getItem(BALL_KEY) === '1') {
       setTimeout(() => {

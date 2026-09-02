@@ -52,8 +52,10 @@ public class FloatingBallService extends Service {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.START;
-        lp.x = dp(6);
-        lp.y = dp(200);
+        // 位置记忆：上次拖动后的落点（SharedPreferences）
+        android.content.SharedPreferences sp = getSharedPreferences("ball", MODE_PRIVATE);
+        lp.x = sp.getInt("x", dp(6));
+        lp.y = sp.getInt("y", dp(200));
 
         // 拖动移动；位移小于阈值视为轻点 → 打开悬浮卡
         view.setOnTouchListener(new View.OnTouchListener() {
@@ -87,7 +89,13 @@ public class FloatingBallService extends Service {
                     }
                     case MotionEvent.ACTION_UP:
                         android.util.Log.d("RPA11y", "ball UP moved=" + moved);
-                        if (!moved) openCard();
+                        if (moved) {
+                            // 位置记忆
+                            getSharedPreferences("ball", MODE_PRIVATE).edit()
+                                    .putInt("x", lp.x).putInt("y", lp.y).apply();
+                        } else {
+                            openCard();
+                        }
                         return true;
                     default:
                         return false;

@@ -67,6 +67,35 @@ public class ProcessTextPlugin extends Plugin {
         call.resolve(r);
     }
 
+    /** 原生 TTS 发音（WebView 无 speechSynthesis，走系统英文 TTS） */
+    private android.speech.tts.TextToSpeech tts;
+    private String pendingSpeak;
+
+    @PluginMethod
+    public void speak(PluginCall call) {
+        String text = call.getString("text");
+        if (tts != null) {
+            speakNow(text);
+            call.resolve();
+            return;
+        }
+        pendingSpeak = text; // 引擎异步初始化，就绪后补播
+        tts = new android.speech.tts.TextToSpeech(getContext(), status -> {
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                tts.setLanguage(java.util.Locale.US);
+                if (pendingSpeak != null) speakNow(pendingSpeak);
+            }
+            pendingSpeak = null;
+        });
+        call.resolve();
+    }
+
+    private void speakNow(String text) {
+        if (tts != null && text != null && !text.isEmpty()) {
+            tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "rp");
+        }
+    }
+
     /** 悬浮球状态：授权与运行 */
     @PluginMethod
     public void overlayStatus(PluginCall call) {

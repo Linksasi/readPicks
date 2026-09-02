@@ -86,6 +86,7 @@ public class CardActivity extends BridgeActivity {
             text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
         }
         if (text == null) text = "";
+        android.util.Log.d("RPA11y", "forward len=" + text.length() + " act=" + getIntent().getAction());
         PluginHandle handle = getBridge().getPlugin("ProcessText");
         if (handle != null && handle.getInstance() instanceof ProcessTextPlugin) {
             ((ProcessTextPlugin) handle.getInstance()).receive(text.toString(), true);
