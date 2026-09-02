@@ -35,8 +35,9 @@
             android:excludeFromRecents="true"
             android:taskAffinity="">
 
-            <!-- 划词入口：任何应用选中文本后，系统选择菜单出现「拾词」 -->
-            <intent-filter>
+            <!-- 划词入口：任何应用选中文本后，系统选择菜单出现「拾词」。
+                 priority=999：系统不提供排序 API，priority 是唯一杠杆（多数 ROM 按其排序） -->
+            <intent-filter android:priority="999">
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
