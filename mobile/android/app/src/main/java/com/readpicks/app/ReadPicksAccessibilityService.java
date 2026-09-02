@@ -32,6 +32,9 @@ public class ReadPicksAccessibilityService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() != AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED) return;
+        // 拾词自己界面里的选区（复制时的 select-all 等）永远不是「阅读语境」
+        String eventPkg = event.getPackageName() == null ? "" : event.getPackageName().toString();
+        if (getPackageName().equals(eventPkg)) return;
 
         CharSequence text = (event.getText() != null && !event.getText().isEmpty())
                 ? event.getText().get(0) : null;
@@ -44,10 +47,10 @@ public class ReadPicksAccessibilityService extends AccessibilityService {
             CharSequence nodeText = node.getText();
             if (nodeText != null && nodeText.length() > 0) text = nodeText;
         }
-        android.util.Log.d("RPA11y", "selection event pkg=" + event.getPackageName()
+        android.util.Log.d("RPA11y", "selection event pkg=" + eventPkg
                 + " src=" + (node != null) + " idx=" + start + ".." + end
                 + " textLen=" + (text == null ? -1 : text.length()));
-        cacheSelection(text, start, end, event.getPackageName() == null ? "" : event.getPackageName().toString());
+        cacheSelection(text, start, end, eventPkg);
     }
 
     private static void cacheSelection(CharSequence text, int start, int end, String pkg) {
@@ -76,22 +79,27 @@ public class ReadPicksAccessibilityService extends AccessibilityService {
             // 同步扫描（getWindows/节点遍历为 binder 调用，后台线程可直接执行）：
             // 若 post 到主线程，会与卡片 WebView 初始化竞争主线程导致结果迟到
             if (svc.getWindows() == null) return;
+            AccessibilityNodeInfo best = null;
             for (AccessibilityWindowInfo win : svc.getWindows()) {
-                if (win == null || win.getRoot() == null) continue;
+                if (win == null) continue;
                 AccessibilityNodeInfo root = win.getRoot();
+                if (root == null) continue;
                 String rootPkg = root.getPackageName() == null ? "" : root.getPackageName().toString();
                 if (svc.getPackageName().equals(rootPkg)) continue; // 跳过拾词自己的窗口
                 AccessibilityNodeInfo hit = findNodeContainingWord(root, needle, 0);
-                if (hit != null) {
-                    CharSequence t = hit.getText();
-                    int s = hit.getTextSelectionStart();
-                    int e = hit.getTextSelectionEnd();
-                    // 有真实选区下标用下标，否则 -1（JS 按词首现定位）
-                    boolean hasSel = s >= 0 && e > s;
-                    cacheSelection(t, hasSel ? s : -1, hasSel ? e : -1, rootPkg);
-                    android.util.Log.d("RPA11y", "scan hit pkg=" + rootPkg + " len=" + t.length());
-                    return;
+                // 多个节点含词时取最长文本（段落优于标题行，语境更完整）
+                if (hit != null && (best == null || hit.getText().length() > best.getText().length())) {
+                    best = hit;
                 }
+            }
+            if (best != null) {
+                CharSequence t = best.getText();
+                int s = best.getTextSelectionStart();
+                int e = best.getTextSelectionEnd();
+                boolean hasSel = s >= 0 && e > s;
+                cacheSelection(t, hasSel ? s : -1, hasSel ? e : -1, "scan");
+                android.util.Log.d("RPA11y", "scan hit len=" + t.length());
+                return;
             }
             android.util.Log.d("RPA11y", "scan finished, no matching node");
         } catch (Exception e) {

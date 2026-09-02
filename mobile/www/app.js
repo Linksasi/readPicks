@@ -321,7 +321,13 @@ async function runQuery(raw) {
   }
 
   // 划词语境（无障碍句）：LLM 出句译 + 词中译法，MyMemory 兜底句译——语境永远在场
-  const selCtx = await captureSelectionContext(word);
+  let selCtx = await captureSelectionContext(word);
+  // 剪贴板整句兜底：输入的词是刚复制句子的一部分 → 整句作语境（挖空该词）
+  if (!selCtx && clipSentence) {
+    const sentence = clipSentence.trim().replace(/\s+/g, ' ');
+    const cloze = clozeSentence(sentence, word);
+    if (cloze) selCtx = { context: sentence, cloze };
+  }
   if (selCtx) {
     payload.context = selCtx.context;
     payload.cloze = selCtx.cloze;
@@ -393,13 +399,15 @@ function renderQueryCard(p, srcLabel) {
       card.appendChild(el('div', 'back-def', zhText)); // 无英文释义：中文即主释义，直接展示
     }
   }
-  // 语境在场：原句 + 句译 + 词中译法 + 用法（LLM 时）
+  // 语境在场：原句 + 句译 + 词中译法 + 用法（LLM 时）；无语境时提示整句玩法
   if (p.context) {
     card.appendChild(el('div', 'back-ctx', '📖 ' + p.context));
     if (p.sentenceTranslation) card.appendChild(el('div', 'back-ctx', '↳ ' + p.sentenceTranslation));
     if (p.wordInSentence) card.appendChild(el('div', 'back-ctx', '· 本句中：' + p.wordInSentence));
     if (p.usage) card.appendChild(el('div', 'back-ctx', '· 用法：' + p.usage));
     else if (p.explain) card.appendChild(el('div', 'back-ctx', '· ' + p.explain));
+  } else {
+    card.appendChild(el('div', 'back-ctx', '💡 复制整句再触发拾词，可自动带出语境'));
   }
   const addBtn = el('button', 'btn primary q-add', '＋ 加入生词本');
   addBtn.onclick = async () => {
@@ -790,9 +798,20 @@ $('font-size').addEventListener('input', () => {
   applyFontScale();
 });
 
-// ---------- 剪贴板接力（无法划词的界面：复制单词 → 切到拾词 → 一键查词） ----------
+// ---------- 剪贴板接力（无法划词的界面：复制单词/整句 → 切到拾词 → 一键查词） ----------
+// 单词模式：自动查词；语境由无障碍服务扫描后台源应用「包含该词的文本节点」带出
+//（你刚复制这个词的地方就是它所在的句子）。整句模式：粘贴到输入框，改到要查的词后自动带整句语境。
 
 let lastClip = '';
+let clipSentence = null;
+
+/** 在句子上为词做挖空（首个词边界命中） */
+function clozeSentence(sentence, word) {
+  const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(^|[^A-Za-z])(' + esc + ')(?![A-Za-z])', 'i');
+  if (!re.test(sentence)) return null;
+  return sentence.replace(re, (all, pre, hit) => pre + '{{c1::' + hit + '}}');
+}
 
 async function checkClipboard() {
   if (cardMode || document.hidden) return;
@@ -801,18 +820,33 @@ async function checkClipboard() {
   try {
     const r = await P.readClipboard();
     const text = ((r && r.text) || '').trim();
-    if (!text || text === lastClip || text.length > 40 || !/^[A-Za-z][A-Za-z' -]{0,39}$/.test(text)) return;
+    if (!text || text === lastClip || text.length > 200) return;
+    const isWord = /^[A-Za-z][A-Za-z' -]{0,39}$/.test(text);
+    const isSentence = /^[A-Za-z][A-Za-z' ,.!?;:'"()-]{9,199}$/.test(text) && text.trim().split(/\s+/).length >= 2;
+    if (!isWord && !isSentence) return;
     lastClip = text;
     const bar = $('clip-bar');
-    bar.textContent = '📋 检测到剪贴板：「' + text + '」 点击查词';
-    bar.classList.remove('hidden');
-    bar.onclick = () => {
-      bar.classList.add('hidden');
-      switchTab('query');
-      runQuery(text);
-    };
     clearTimeout(bar._t);
-    bar._t = setTimeout(() => bar.classList.add('hidden'), 10000);
+    if (isWord) {
+      bar.textContent = '📋 检测到剪贴板：「' + text + '」 点击查词（自动带上所在句子）';
+      bar.onclick = () => {
+        bar.classList.add('hidden');
+        switchTab('query');
+        runQuery(text);
+      };
+    } else {
+      clipSentence = text;
+      bar.textContent = '📋 检测到句子 → 点击粘贴，改成要查的词后查（自动带语境）';
+      bar.onclick = () => {
+        bar.classList.add('hidden');
+        switchTab('query');
+        const input = $('q-input');
+        input.value = text;
+        input.focus();
+      };
+    }
+    bar.classList.remove('hidden');
+    bar._t = setTimeout(() => bar.classList.add('hidden'), 12000);
   } catch { /* 剪贴板不可用：忽略 */ }
 }
 
