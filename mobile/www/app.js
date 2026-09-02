@@ -540,6 +540,8 @@ function enterCardMode() {
   const close = el('button', 'card-close', '✕');
   close.onclick = () => closeCard();
   $('tab-query').appendChild(close);
+  // 悬浮球进入 = 主动查词意图 → 聚焦输入框弹键盘
+  setTimeout(() => { const i = $('q-input'); if (i && !i.value) i.focus(); }, 300);
 }
 
 function closeCard() {
@@ -641,6 +643,7 @@ async function refreshSettings() {
   refreshCardSize();
   refreshFontScale();
   refreshA11y();
+  refreshBall();
   const last = await rpdb.getMeta('lastSyncAt', 0);
   $('set-lastsync').textContent = last ? new Date(last).toLocaleString('zh-CN') : '从未';
   const lvl = await rpdb.getMeta('vocabLevel', null);
@@ -860,6 +863,37 @@ document.addEventListener('visibilitychange', () => {
   if (active && active.dataset.tab === 'settings') refreshSettings();
 });
 
+// ---------- 全局悬浮球（自绘选区应用的万能入口） ----------
+
+const BALL_KEY = 'rp-ball-on';
+
+async function refreshBall() {
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  const btn = $('ball-toggle');
+  if (!P || !P.overlayStatus) {
+    $('ball-status').textContent = '浏览器不可用（APK 内有效）';
+    btn.classList.add('hidden');
+    return;
+  }
+  try {
+    const r = await P.overlayStatus();
+    if (!r.granted) {
+      $('ball-status').textContent = '未授权';
+      btn.textContent = '去授权「显示在其他应用上层」';
+      btn.onclick = () => { if (P.openOverlaySettings) P.openOverlaySettings(); };
+      return;
+    }
+    $('ball-status').textContent = r.running ? '✓ 已开启' : '未开启';
+    btn.textContent = r.running ? '关闭悬浮球' : '开启悬浮球';
+    btn.onclick = async () => {
+      const res = await P.setBall({ on: !r.running });
+      if (res && res.granted === false) { refreshBall(); return; }
+      localStorage.setItem(BALL_KEY, res && res.running ? '1' : '0');
+      refreshBall();
+    };
+  } catch { $('ball-status').textContent = '未知'; }
+}
+
 // ---------- 事件绑定 ----------
 
 document.querySelectorAll('.tabbar button').forEach((btn) => {
@@ -882,8 +916,15 @@ document.addEventListener('click', (e) => {
     await rpdb.open();
     deviceName();
     applyFontScale();
-    setupProcessText(); // APK：系统选择菜单「拾词」→ 预填查询
+    setupProcessText(); // APK：系统选择菜单「拾词」/ 分享 / 悬浮球 → 悬浮卡
     showMain(); // 始终进入主界面：查词/复习离线独立可用，配对在设置页
+    // 悬浮球上次开着的话 → 恢复启动（服务随 App 关闭而停止，这里重新拉起）
+    if (localStorage.getItem(BALL_KEY) === '1') {
+      setTimeout(() => {
+        const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+        if (P && P.overlayStatus) P.overlayStatus().then((r) => { if (r && r.granted && P.setBall) P.setBall({ on: true }); });
+      }, 800);
+    }
   } catch (e) {
     if (window.rpboot) window.rpboot.show('初始化失败：' + ((e && e.message) || e));
   }

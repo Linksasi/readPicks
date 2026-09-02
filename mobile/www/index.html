@@ -97,6 +97,12 @@
         <p class="set-hint">开启拾词的无障碍服务后，在其他应用选中文字点「拾词」即可自动带出所在句子作语境（挖空复习用）。拾词只读取选中文本所在内容，不上传任何数据。无法划词的界面可复制单词后切到拾词，会自动提示一键查词。</p>
       </div>
       <div class="set-card">
+        <div class="set-title">⚽ 全局悬浮球（万能入口）</div>
+        <div class="set-row"><span>悬浮球</span><b id="ball-status">—</b></div>
+        <button class="btn ghost" id="ball-toggle">开启悬浮球</button>
+        <p class="set-hint">PDF、笔记等自绘选区菜单的应用无法划词？开启悬浮球：小球常驻所有应用之上，在阅读时轻点小球即可弹出查词卡手动输入。需要「显示在其他应用上层」权限（仅授权一次）。</p>
+      </div>
+      <div class="set-card">
         <div class="set-title">🤖 AI 简单释义（直连）</div>
         <label class="llm-row"><input type="checkbox" id="llm-enabled"><span>启用（外出查词直连，不依赖电脑）</span></label>
         <input type="text" class="set-input" id="llm-baseUrl" placeholder="https://api.deepseek.com/v1" autocapitalize="off" spellcheck="false">

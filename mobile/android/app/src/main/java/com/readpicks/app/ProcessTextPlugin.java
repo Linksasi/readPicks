@@ -1,5 +1,7 @@
 package com.readpicks.app;
 
+import android.content.Intent;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -63,5 +65,46 @@ public class ProcessTextPlugin extends Plugin {
             r.put("text", "");
         }
         call.resolve(r);
+    }
+
+    /** 悬浮球状态：授权与运行 */
+    @PluginMethod
+    public void overlayStatus(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("granted", android.provider.Settings.canDrawOverlays(getContext()));
+        r.put("running", FloatingBallService.running);
+        call.resolve(r);
+    }
+
+    /** 开/关悬浮球（前台服务）。未授权时返回 granted=false，由网页引导去系统设置 */
+    @PluginMethod
+    public void setBall(PluginCall call) {
+        boolean on = Boolean.TRUE.equals(call.getBoolean("on"));
+        JSObject r = new JSObject();
+        if (on && !android.provider.Settings.canDrawOverlays(getContext())) {
+            r.put("granted", false);
+            r.put("running", false);
+            call.resolve(r);
+            return;
+        }
+        Intent i = new Intent(getContext(), FloatingBallService.class);
+        if (on) {
+            getContext().startService(i);
+        } else {
+            getContext().stopService(i);
+        }
+        r.put("granted", true);
+        r.put("running", on && FloatingBallService.running);
+        call.resolve(r);
+    }
+
+    /** 跳转「显示在其他应用上层」授权页 */
+    @PluginMethod
+    public void openOverlaySettings(PluginCall call) {
+        Intent i = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:" + getContext().getPackageName()));
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i);
+        call.resolve();
     }
 }

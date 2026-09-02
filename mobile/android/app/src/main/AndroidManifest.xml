@@ -42,7 +42,24 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
+            <!-- 分享入口：自绘选区菜单的应用可通过「分享」把文本发给拾词 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
         </activity>
+
+        <!-- 全局悬浮球：常驻小球，点球查词（自绘选区应用的兜底入口） -->
+        <service
+            android:name=".FloatingBallService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="floating ball for word lookup over other apps" />
+        </service>
 
         <!-- 跨软件取词语境：监听文本选择事件，为查词补齐所在句子 -->
         <service
@@ -72,4 +89,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 </manifest>

@@ -80,8 +80,12 @@ public class CardActivity extends BridgeActivity {
 
     private void forwardProcessText(Intent intent) {
         if (intent == null) return;
+        // 两种入口文本：PROCESS_TEXT（系统选择菜单）与 SEND（应用自带菜单的「分享」）
         CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
-        if (text == null || text.length() == 0) return;
+        if (text == null || text.length() == 0) {
+            text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+        }
+        if (text == null) text = "";
         PluginHandle handle = getBridge().getPlugin("ProcessText");
         if (handle != null && handle.getInstance() instanceof ProcessTextPlugin) {
             ((ProcessTextPlugin) handle.getInstance()).receive(text.toString(), true);
