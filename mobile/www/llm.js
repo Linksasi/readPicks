@@ -91,19 +91,23 @@
     return def ? { simpleDef: String(def) } : null;
   }
 
-  /** 语境查询：整句翻译 + 该词在本句的译法。返回 { sentenceTranslation, wordInSentence } 或 null */
+  /** 语境查询：整句翻译 + 该词在本句的译法 + 译法原因 + 用法说明（与 PC 查词同字段）。
+      返回 { sentenceTranslation, wordInSentence, explain, usage } 或 null */
   async function lookupInContext(word, sentence, vocabLevel) {
     const c = getConfig();
     if (!isConfigured()) return null;
     const sys = '你是英语学习助手。用户给出一个英语单词和它所在的句子，直接输出严格 JSON，' +
       '不要思考过程、不要解释、不要 Markdown 代码块：' +
-      '{"sentence_translation":"整句中文翻译","word_in_sentence":"该单词在本句中的含义，中文"}' +
+      '{"sentence_translation":"整句中文翻译","word_in_sentence":"该单词在本句中的含义，中文",' +
+      '"explain":"一句话解释为什么在这里这么译","usage":"该词在此句的用法说明（词性、搭配），一两句话"}' +
       levelClause(vocabLevel);
     const data = extractJson(await chat(c.baseUrl, c.apiKey, c.model, sys, '单词：' + word + '\n句子：' + sentence));
     if (!data) return null;
     const st = data.sentence_translation || data.sentenceTranslation || '';
     const wis = data.word_in_sentence || data.wordInSentence || '';
-    return (st || wis) ? { sentenceTranslation: st, wordInSentence: wis } : null;
+    const ex = data.explain || '';
+    const us = data.usage || '';
+    return (st || wis || us) ? { sentenceTranslation: st, wordInSentence: wis, explain: ex, usage: us } : null;
   }
 
   window.rpllm = { getConfig, saveConfig, isConfigured, simpleDefinition, lookupInContext };

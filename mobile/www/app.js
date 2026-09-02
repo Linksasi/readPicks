@@ -26,7 +26,7 @@ function switchTab(name) {
   }
   $('tab-title').textContent = { review: '今日复习', query: '查词', words: '生词本', settings: '设置' }[name];
   if (name === 'review') loadReview();
-  if (name === 'query') loadMiniDict(); // 进查询页时预载离线词典
+  if (name === 'query') { loadMiniDict(); checkClipboard(); } // 进查询页：预载离线词典 + 剪贴板接力
   if (name === 'words') refreshWords();
   if (name === 'settings') refreshSettings();
 }
@@ -330,7 +330,7 @@ async function runQuery(raw) {
     if (rpllm.isConfigured()) {
       try {
         const r = await rpllm.lookupInContext(word, selCtx.context, lvl);
-        if (r) { trans = r.sentenceTranslation; wis = r.wordInSentence; }
+        if (r) { trans = r.sentenceTranslation; wis = r.wordInSentence; payload.explain = r.explain || null; payload.usage = r.usage || null; }
       } catch { /* 降级 MM */ }
     }
     if (!trans) trans = await mymemoryTranslate(selCtx.context);
@@ -368,7 +368,7 @@ function renderQueryCard(p, srcLabel) {
     for (const t of p.tags.slice(0, 6)) tl.appendChild(el('span', 'tag-chip', TAG_LABEL[t] || t));
     card.appendChild(tl);
   }
-  // 理念：英文释义在上（AI 简单释义 / WordNet 义项），中文弱化兜底
+  // 理念：英文释义在上（AI 简单释义 / WordNet 义项），中文弱化兜底——默认收起，点击展开
   let hasEn = false;
   if (p.simpleDef) { card.appendChild(el('div', 'simple-def', p.simpleDef)); hasEn = true; }
   else if (p.enDefinition && p.enDefinition.senses && p.enDefinition.senses.length) {
@@ -377,15 +377,29 @@ function renderQueryCard(p, srcLabel) {
   }
   const defs = p.defs && p.defs.length ? p.defs : (p.translated ? [{ pos: '', def: p.translated }] : []);
   if (defs.length) {
-    const d = el('div', 'back-def', defs.map((x) => (x.pos ? x.pos + '. ' : '') + x.def).join('；'));
-    if (hasEn) d.classList.add('muted');
-    card.appendChild(d);
+    const zhText = defs.map((x) => (x.pos ? x.pos + '. ' : '') + x.def).join('；');
+    if (hasEn) {
+      // 有英文区 → 中文默认收起（理念：中文是兜底，不是主释义）
+      const zh = el('div', 'zh-block');
+      const head = el('div', 'zh-head', '中文释义 ▾');
+      const body = el('div', 'zh-body hidden', zhText);
+      head.onclick = () => {
+        const collapsed = body.classList.toggle('hidden');
+        head.textContent = '中文释义 ' + (collapsed ? '▾' : '▴');
+      };
+      zh.appendChild(head); zh.appendChild(body);
+      card.appendChild(zh);
+    } else {
+      card.appendChild(el('div', 'back-def', zhText)); // 无英文释义：中文即主释义，直接展示
+    }
   }
-  // 语境在场：原句 + 句译 + 词中译法
+  // 语境在场：原句 + 句译 + 词中译法 + 用法（LLM 时）
   if (p.context) {
     card.appendChild(el('div', 'back-ctx', '📖 ' + p.context));
     if (p.sentenceTranslation) card.appendChild(el('div', 'back-ctx', '↳ ' + p.sentenceTranslation));
     if (p.wordInSentence) card.appendChild(el('div', 'back-ctx', '· 本句中：' + p.wordInSentence));
+    if (p.usage) card.appendChild(el('div', 'back-ctx', '· 用法：' + p.usage));
+    else if (p.explain) card.appendChild(el('div', 'back-ctx', '· ' + p.explain));
   }
   const addBtn = el('button', 'btn primary q-add', '＋ 加入生词本');
   addBtn.onclick = async () => {
@@ -617,6 +631,7 @@ async function refreshSettings() {
   $('set-device').textContent = localStorage.getItem('rp-device-name') || deviceName();
   $('set-server').textContent = paired ? (cfg.serverUrl || rpsync.apiBase()) : '未配对（离线模式）';
   refreshCardSize();
+  refreshFontScale();
   refreshA11y();
   const last = await rpdb.getMeta('lastSyncAt', 0);
   $('set-lastsync').textContent = last ? new Date(last).toLocaleString('zh-CN') : '从未';
@@ -751,6 +766,66 @@ $('card-size').addEventListener('input', () => {
   applyCardSize();
 });
 
+// ---------- 字号大小（Chromium zoom：所有 px 等比缩放，悬浮卡同步生效） ----------
+
+const FONT_KEY = 'rp-font-scale';
+
+function fontScale() {
+  const v = Number(localStorage.getItem(FONT_KEY));
+  return v >= 80 && v <= 140 ? v : 100;
+}
+
+function applyFontScale() {
+  document.body.style.zoom = fontScale() / 100;
+}
+
+function refreshFontScale() {
+  $('font-size').value = fontScale();
+  $('font-size-val').textContent = fontScale() + '%';
+}
+
+$('font-size').addEventListener('input', () => {
+  localStorage.setItem(FONT_KEY, $('font-size').value);
+  $('font-size-val').textContent = $('font-size').value + '%';
+  applyFontScale();
+});
+
+// ---------- 剪贴板接力（无法划词的界面：复制单词 → 切到拾词 → 一键查词） ----------
+
+let lastClip = '';
+
+async function checkClipboard() {
+  if (cardMode || document.hidden) return;
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  if (!P || !P.readClipboard) return;
+  try {
+    const r = await P.readClipboard();
+    const text = ((r && r.text) || '').trim();
+    if (!text || text === lastClip || text.length > 40 || !/^[A-Za-z][A-Za-z' -]{0,39}$/.test(text)) return;
+    lastClip = text;
+    const bar = $('clip-bar');
+    bar.textContent = '📋 检测到剪贴板：「' + text + '」 点击查词';
+    bar.classList.remove('hidden');
+    bar.onclick = () => {
+      bar.classList.add('hidden');
+      switchTab('query');
+      runQuery(text);
+    };
+    clearTimeout(bar._t);
+    bar._t = setTimeout(() => bar.classList.add('hidden'), 10000);
+  } catch { /* 剪贴板不可用：忽略 */ }
+}
+
+// 回到前台：字号/剪贴板检查 + 设置页状态刷新（无障碍开关回来后状态即时更新）
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  applyFontScale();
+  checkClipboard();
+  if (cardMode) return;
+  const active = document.querySelector('.tabbar button.active');
+  if (active && active.dataset.tab === 'settings') refreshSettings();
+});
+
 // ---------- 事件绑定 ----------
 
 document.querySelectorAll('.tabbar button').forEach((btn) => {
@@ -772,6 +847,7 @@ document.addEventListener('click', (e) => {
   try {
     await rpdb.open();
     deviceName();
+    applyFontScale();
     setupProcessText(); // APK：系统选择菜单「拾词」→ 预填查询
     showMain(); // 始终进入主界面：查词/复习离线独立可用，配对在设置页
   } catch (e) {

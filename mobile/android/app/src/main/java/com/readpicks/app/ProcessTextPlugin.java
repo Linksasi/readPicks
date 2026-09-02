@@ -44,4 +44,24 @@ public class ProcessTextPlugin extends Plugin {
         getActivity().runOnUiThread(() -> getActivity().finish());
         call.resolve();
     }
+
+    /** 读取剪贴板（仅前台调用；用于「复制单词 → 切到拾词 → 一键查词」的无法划词兜底） */
+    @PluginMethod
+    public void readClipboard(PluginCall call) {
+        JSObject r = new JSObject();
+        try {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                    getContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            android.content.ClipData cd = cm == null ? null : cm.getPrimaryClip();
+            String text = "";
+            if (cd != null && cd.getItemCount() > 0 && cd.getItemAt(0) != null) {
+                CharSequence t = cd.getItemAt(0).coerceToText(getContext());
+                if (t != null) text = t.toString();
+            }
+            r.put("text", text);
+        } catch (Exception e) {
+            r.put("text", "");
+        }
+        call.resolve(r);
+    }
 }

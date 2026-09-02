@@ -18,6 +18,7 @@
       <button class="sync-btn" id="sync-now">⟳ 同步</button>
     </div>
     <p class="sync-line" id="sync-line"></p>
+    <div id="clip-bar" class="clip-bar hidden"></div>
 
     <!-- 复习 -->
     <div id="tab-review" class="tabpane">
@@ -89,9 +90,11 @@
         <div class="set-title">🃏 划词悬浮卡</div>
         <label class="llm-row"><span>卡片大小</span><b id="card-size-val">72%</b></label>
         <input type="range" class="set-input" id="card-size" min="60" max="100" step="2" value="72">
+        <label class="llm-row"><span>字号大小</span><b id="font-size-val">100%</b></label>
+        <input type="range" class="set-input" id="font-size" min="80" max="140" step="5" value="100">
         <div class="set-row"><span>划词语境（选中即带整句）</span><b id="a11y-status">—</b></div>
         <button class="btn ghost" id="a11y-open">去系统设置开启无障碍</button>
-        <p class="set-hint">开启拾词的无障碍服务后，在其他应用选中文字点「拾词」即可自动带出所在句子作语境（挖空复习用）。拾词只读取选中文本所在内容，不上传任何数据。</p>
+        <p class="set-hint">开启拾词的无障碍服务后，在其他应用选中文字点「拾词」即可自动带出所在句子作语境（挖空复习用）。拾词只读取选中文本所在内容，不上传任何数据。无法划词的界面可复制单词后切到拾词，会自动提示一键查词。</p>
       </div>
       <div class="set-card">
         <div class="set-title">🤖 AI 简单释义（直连）</div>
