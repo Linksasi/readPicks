@@ -19,6 +19,7 @@ public class CardActivity extends BridgeActivity {
 
     private static volatile CardActivity instance = null;
     private volatile float widthPct = 72f;
+    private volatile int contentHeightCss = -1; // JS 回报的内容高度（CSS px），-1 = 未知
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -26,8 +27,9 @@ public class CardActivity extends BridgeActivity {
         registerPlugin(ProcessTextPlugin.class);
         registerPlugin(SelectionPlugin.class);
         super.onCreate(savedInstanceState);
+        // 顶部锚定（成熟悬浮翻译应用的通用形态）：卡片贴状态栏下方，不居中悬空
+        getWindow().setGravity(android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
         applyWindowSize();
-        // WebView 透明：露出窗口圆角白底（若设备不支持，退化为方角，纯外观差异）
         getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         clearParentBackgrounds();
         forwardProcessText(getIntent());
@@ -52,19 +54,31 @@ public class CardActivity extends BridgeActivity {
         super.onDestroy();
     }
 
-    /** JS 设置页滑杆同步卡片宽度（高度固定 62% 屏高，内容内部滚动） */
-    public static void applySize(float wPct) {
+    /** JS 同步卡片尺寸：宽度滑杆百分比 + 内容高度（自适应，封顶 60% 屏高） */
+    public static void applySize(float wPct, int contentCss) {
         CardActivity a = instance;
         if (a == null) return;
         a.widthPct = Math.max(60f, Math.min(100f, wPct));
+        a.contentHeightCss = contentCss;
         a.runOnUiThread(a::applyWindowSize);
     }
 
     private void applyWindowSize() {
         DisplayMetrics dm = getResources().getDisplayMetrics();
-        getWindow().setLayout(
-                Math.round(dm.widthPixels * widthPct / 100f),
-                Math.round(dm.heightPixels * 0.62f));
+        int w = Math.round(dm.widthPixels * widthPct / 100f);
+        int h;
+        if (contentHeightCss > 0) {
+            h = Math.min(Math.round(contentHeightCss * dm.density) + dp(8), Math.round(dm.heightPixels * 0.6f));
+        } else {
+            h = Math.round(dm.heightPixels * 0.55f); // JS 首报前的初始高度
+        }
+        android.util.Log.d("RPA11y", "applyWindowSize screenW=" + dm.widthPixels
+                + " wPct=" + widthPct + " -> w=" + w + " h=" + h);
+        getWindow().setLayout(w, h);
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
     }
 
     /** 清除 WebView 上层容器的主题白底（让窗口的圆角白底透出来） */

@@ -47,6 +47,15 @@ public class ProcessTextPlugin extends Plugin {
         call.resolve();
     }
 
+    /** JS 同步卡片尺寸：宽度百分比（屏幕）+ 内容高度（CSS px，自适应封顶） */
+    @PluginMethod
+    public void setCardSize(PluginCall call) {
+        Float w = call.getFloat("widthPct");
+        Integer h = call.getInt("contentHeight");
+        CardActivity.applySize(w == null ? 72f : w, h == null ? -1 : h);
+        call.resolve();
+    }
+
     /** 读取剪贴板（仅前台调用；用于「复制单词 → 切到拾词 → 一键查词」的无法划词兜底） */
     @PluginMethod
     public void readClipboard(PluginCall call) {
@@ -67,7 +76,8 @@ public class ProcessTextPlugin extends Plugin {
         call.resolve(r);
     }
 
-    /** 原生 TTS 发音（WebView 无 speechSynthesis，走系统英文 TTS） */
+    /** 原生 TTS 发音（WebView 无 speechSynthesis，走系统英文 TTS）。
+        国产 ROM 常见默认引擎未配置/en-US 数据缺失：语言回退链 + 错误回报网页 */
     private android.speech.tts.TextToSpeech tts;
     private String pendingSpeak;
 
@@ -79,35 +89,55 @@ public class ProcessTextPlugin extends Plugin {
             call.resolve();
             return;
         }
-        pendingSpeak = text; // 引擎异步初始化，就绪后补播
+        pendingSpeak = text;
         tts = new android.speech.tts.TextToSpeech(getContext(), status -> {
             android.util.Log.d("RPA11y", "tts init status=" + status);
-            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
-                int lang = tts.setLanguage(java.util.Locale.US);
-                android.util.Log.d("RPA11y", "tts setLanguage=" + lang);
-                if (pendingSpeak != null) speakNow(pendingSpeak);
+            if (status != android.speech.tts.TextToSpeech.SUCCESS) {
+                pendingSpeak = null;
+                notifyTtsError("系统 TTS 引擎初始化失败");
+                return;
             }
+            // 语言回退链：US → UK → 系统默认（中文引擎也能读英文单词）
+            int r = tts.setLanguage(java.util.Locale.US);
+            if (r == android.speech.tts.TextToSpeech.LANG_MISSING_DATA
+                    || r == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+                r = tts.setLanguage(java.util.Locale.UK);
+            }
+            if (r == android.speech.tts.TextToSpeech.LANG_MISSING_DATA
+                    || r == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) {
+                tts.setLanguage(java.util.Locale.getDefault());
+            }
+            if (pendingSpeak != null) speakNow(pendingSpeak);
             pendingSpeak = null;
         });
         call.resolve();
     }
 
     private void speakNow(String text) {
-        if (tts != null && text != null && !text.isEmpty()) {
-            tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
-                @Override
-                public void onStart(String id) { }
+        if (tts == null || text == null || text.isEmpty()) return;
+        tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+            @Override
+            public void onStart(String id) { }
 
-                @Override
-                public void onDone(String id) { }
+            @Override
+            public void onDone(String id) { }
 
-                @Override
-                public void onError(String id) {
-                    android.util.Log.d("RPA11y", "tts error: " + id);
-                }
-            });
-            tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "rp");
+            @Override
+            public void onError(String id) {
+                android.util.Log.d("RPA11y", "tts error: " + id);
+                notifyTtsError("发音失败（TTS 引擎错误）");
+            }
+        });
+        int r = tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "rp");
+        if (r != android.speech.tts.TextToSpeech.SUCCESS) {
+            notifyTtsError("发音队列失败");
         }
+    }
+
+    private void notifyTtsError(String msg) {
+        JSObject d = new JSObject();
+        d.put("message", msg);
+        notifyListeners("ttsError", d);
     }
 
     /** 悬浮球状态：授权与运行 */

@@ -244,7 +244,7 @@ input[type=range].set-input { padding: 0; height: 28px; accent-color: var(--acce
 html.card-mode, body.card-mode { height: 100%; }
 body.card-mode {
   background: var(--card);
-  padding: 10px 14px 12px;
+  padding: 8px 12px 10px;
   overflow-y: auto;
 }
 body.card-mode .tabbar,
@@ -260,16 +260,15 @@ body.card-mode #tab-words,
 body.card-mode #tab-settings { display: none !important; }
 body.card-mode #tab-query {
   display: block; background: none; box-shadow: none;
-  /* 顶部预留 ✕ 标题行 */
-  padding: 32px 0 4px; max-height: none; position: relative;
+  padding: 0; max-height: none; position: relative;
 }
-body.card-mode .q-form { margin: 0 0 10px; }
-body.card-mode .q-card { flex: none; max-height: none; box-shadow: none; border: none; padding: 0 0 4px; background: none; }
+body.card-mode .q-form { margin: 0 0 10px; position: relative; padding-right: 38px; }
 body.card-mode .card-close {
-  position: absolute; top: 0; right: 0; z-index: 5;
+  position: absolute; right: -4px; top: 50%; transform: translateY(-50%); z-index: 5;
   width: 30px; height: 30px; border: none; border-radius: 50%;
   background: var(--bg); color: var(--muted); font-size: 14px; cursor: pointer;
 }
+body.card-mode .q-card { flex: none; max-height: none; box-shadow: none; border: none; padding: 0 0 4px; background: none; }
 
 /* ---------- 底部导航 ---------- */
 .tabbar {

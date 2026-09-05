@@ -349,6 +349,7 @@ async function runQuery(raw) {
   }
 
   renderQueryCard(payload, srcLabel);
+  applyCardSize();
 }
 
 /** MyMemory 直连（与 PC translate.js 同款接口）；8 秒超时，失败返回 null */
@@ -544,22 +545,30 @@ function cardSize() {
   return v >= 60 && v <= 100 ? v : 72;
 }
 
-/** 卡片宽度滑杆 → 原生窗口尺寸（浮窗本体由原生 setLayout 控制） */
+/** 卡片宽度滑杆 + 内容高度 → 原生（顶部锚定 + 自适应高度，封顶 60% 屏高） */
 function applyCardSize() {
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
-  if (P && P.setCardSize) P.setCardSize({ widthPct: cardSize() });
+  if (!P || !P.setCardSize) return;
+  const maxH = Math.round((window.screen.height || 640) * 0.6);
+  const h = Math.min(document.body.scrollHeight, maxH);
+  P.setCardSize({ widthPct: cardSize(), contentHeight: h });
 }
 
 function enterCardMode() {
-  if (cardMode) return;
+  if (cardMode) { applyCardSize(); return; }
   cardMode = true;
   document.body.classList.add('card-mode');
   document.documentElement.classList.add('card-mode');
-  applyCardSize();
   switchTab('query');
+  applyCardSize();
   const close = el('button', 'card-close', '✕');
   close.onclick = () => closeCard();
-  $('tab-query').appendChild(close);
+  $('q-form').appendChild(close);
+  // TTS 错误提示（国产 ROM 无 TTS 引擎/缺语言数据时）
+  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  if (P && P.addListener) P.addListener('ttsError', (d) => {
+    $('q-src').textContent = '⚠ ' + ((d && d.message) || '发音失败');
+  });
   // 悬浮球进入 = 主动查词意图 → 聚焦输入框弹键盘
   setTimeout(() => { const i = $('q-input'); if (i && !i.value) i.focus(); }, 300);
 }
