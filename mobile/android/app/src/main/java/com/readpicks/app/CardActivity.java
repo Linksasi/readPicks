@@ -27,8 +27,8 @@ public class CardActivity extends BridgeActivity {
         registerPlugin(ProcessTextPlugin.class);
         registerPlugin(SelectionPlugin.class);
         super.onCreate(savedInstanceState);
-        // 顶部锚定（成熟悬浮翻译应用的通用形态）：卡片贴状态栏下方，不居中悬空
-        getWindow().setGravity(android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
+        // 屏幕居中（用户偏好）；高度自适应内容
+        getWindow().setGravity(android.view.Gravity.CENTER);
         applyWindowSize();
         getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         clearParentBackgrounds();
