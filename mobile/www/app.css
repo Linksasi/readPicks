@@ -21,7 +21,7 @@ body {
   overscroll-behavior-y: none;
 }
 
-.page { display: flex; flex-direction: column; height: 100%; padding: calc(env(safe-area-inset-top) + 30px) 16px 0; }
+.page { display: flex; flex-direction: column; height: 100%; padding: calc(env(safe-area-inset-top) + 10px) 16px 0; }
 .hidden { display: none !important; }
 
 /* 启动诊断条（boot.js） */
@@ -244,7 +244,7 @@ input[type=range].set-input { padding: 0; height: 28px; accent-color: var(--acce
 html.card-mode, body.card-mode { height: 100%; }
 body.card-mode {
   background: var(--card);
-  padding: 40px 14px 12px;
+  padding: 10px 14px 12px;
   overflow-y: auto;
 }
 body.card-mode .tabbar,
@@ -261,7 +261,7 @@ body.card-mode #tab-settings { display: none !important; }
 body.card-mode #tab-query {
   display: block; background: none; box-shadow: none;
   /* 顶部预留 ✕ 标题行 */
-  padding: 34px 0 4px; max-height: none; position: relative;
+  padding: 32px 0 4px; max-height: none; position: relative;
 }
 body.card-mode .q-form { margin: 0 0 10px; }
 body.card-mode .q-card { flex: none; max-height: none; box-shadow: none; border: none; padding: 0 0 4px; background: none; }
