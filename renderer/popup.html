@@ -12,8 +12,8 @@
     <header id="header">
       <button id="pin" class="icon-btn" title="钉住">📌</button>
       <span id="drag-zone"></span>
-      <button id="settings" class="icon-btn" title="设置">⚙️</button>
-      <button id="close" class="icon-btn" title="关闭 (Esc)">✕</button>
+      <button id="settings" class="icon-btn" title="设置"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+      <button id="close" class="icon-btn" title="关闭 (Esc)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </header>
 
     <!-- 加载态 -->
@@ -24,8 +24,8 @@
       <div class="word-row">
         <h1 id="word"></h1>
         <span id="phonetic" class="phonetic"></span>
-        <button id="speak-en" class="icon-btn" title="英式发音">🇬🇧</button>
-        <button id="speak-us" class="icon-btn" title="美式发音">🇺🇸</button>
+        <button id="speak-en" class="icon-btn" title="英式发音">UK</button>
+        <button id="speak-us" class="icon-btn" title="美式发音">US</button>
       </div>
       <div id="badges" class="badges"></div>
       <div id="en-def-section" class="section hidden">
@@ -37,7 +37,7 @@
         <ul id="defs" class="defs"></ul>
       </details>
       <div id="meta" class="meta"></div>
-      <p id="context-hint" class="hint hidden">💡 阅读时先复制（Ctrl+C）包含该词的句子，再查该词，这里会自动显示「本句译法」</p>
+      <p id="context-hint" class="hint hidden">阅读时先复制（Ctrl+C）包含该词的句子，再查该词，这里会自动显示「本句译法」</p>
 
       <!-- 语境区 -->
       <section id="context-section" class="section hidden">
@@ -47,7 +47,7 @@
         <p id="word-in-sentence" class="word-in-sentence hidden"></p>
         <p id="explain" class="explain hidden"></p>
         <p id="usage" class="usage hidden"></p>
-        <p id="llm-hint" class="hint hidden">💡 在设置中配置 LLM 翻译源，可获得「此处意思与用法」的逐词解释</p>
+        <p id="llm-hint" class="hint hidden">在设置中配置 LLM 翻译源，可获得「此处意思与用法」的逐词解释</p>
         <div id="other-words" class="other-words hidden"></div>
       </section>
 

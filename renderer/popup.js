@@ -90,7 +90,7 @@ function renderWord(p) {
   if (p.queryCount > 0) {
     meta.textContent = `第 ${p.queryCount} 次查询 · 首次 ${fmtTime(p.firstSeen)} · 最近 ${fmtTime(p.lastSeen)}`;
   } else {
-    meta.textContent = p.dictInstalled ? '' : '💡 设置中可一键安装离线词典';
+    meta.textContent = p.dictInstalled ? '' : '设置中可一键安装离线词典';
   }
 
   // 英英释义（测过词汇量后出现）：LLM 简单释义优先，否则 WordNet 义项列表 + 难词标注
@@ -122,12 +122,12 @@ function renderWord(p) {
     } else wis.classList.add('hidden');
     const ex = document.getElementById('explain');
     if (p.explain) {
-      ex.textContent = '💡 ' + p.explain;
+      ex.textContent = p.explain;
       ex.classList.remove('hidden');
     } else ex.classList.add('hidden');
     const us = document.getElementById('usage');
     if (p.usage) {
-      us.textContent = '📎 用法：' + p.usage;
+      us.textContent = '用法：' + p.usage;
       us.classList.remove('hidden');
     } else us.classList.add('hidden');
     // 非 LLM 且无解释时提示配置 LLM

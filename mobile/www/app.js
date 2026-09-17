@@ -24,7 +24,7 @@ function switchTab(name) {
   for (const t of ['review', 'query', 'words', 'settings']) {
     $('tab-' + t).classList.toggle('hidden', t !== name);
   }
-  $('tab-title').textContent = { review: '今日复习', query: '查词', words: '生词本', settings: '设置' }[name];
+  $('tab-title').textContent = { review: '复习', query: '查词', words: '生词本', settings: '设置' }[name];
   if (name === 'review') loadReview();
   if (name === 'query') { loadMiniDict(); checkClipboard(); } // 进查询页：预载离线词典 + 剪贴板接力
   if (name === 'words') refreshWords();
@@ -70,7 +70,7 @@ async function runSync(explicit) {
   syncing = true;
   const btn = $('sync-now');
   btn.disabled = true;
-  btn.textContent = '⟳ 同步中…';
+  btn.classList.add('spinning');
   try {
     const r = await rpsync.doSync();
     const t = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -86,7 +86,7 @@ async function runSync(explicit) {
   } finally {
     syncing = false;
     btn.disabled = false;
-    btn.textContent = '⟳ 同步';
+    btn.classList.remove('spinning');
   }
 }
 
@@ -116,10 +116,14 @@ $('sync-now').onclick = async () => {
 async function loadReview() {
   queue = await rpdb.dueWords(50);
   idx = 0;
+  const meta = $('review-progress');
   if (!queue.length) {
-    showDone('✅ 没有到期的单词', '去阅读中积累生词吧');
+    meta.classList.add('hidden');
+    showDone('今日复习完成', '没有到期的单词 —— 去阅读中积累生词吧');
     return;
   }
+  meta.classList.remove('hidden');
+  meta.innerHTML = '今日待复习 <b>' + queue.length + '</b> 个词';
   render();
 }
 
@@ -133,17 +137,18 @@ async function render() {
   const front = $('front');
   front.innerHTML = '';
   if (ctx && ctx.context_cloze) {
-    front.appendChild(el('div', 'hint', '根据语境回忆单词：'));
+    front.appendChild(el('div', 'hint', '根据语境回忆单词'));
     front.appendChild(elHtml('div', 'cloze', clozeHtml(ctx.context_cloze)));
   } else {
     front.appendChild(elHtml('div', 'cloze', '<span class="blank">？</span>'));
-    front.appendChild(el('div', 'hint', '这个单词还记得吗？点击显示答案'));
+    front.appendChild(el('div', 'hint', '这个单词还记得吗？'));
   }
+  front.appendChild(el('div', 'reveal-pill', '轻点卡片查看答案'));
 
   const back = $('back');
   back.innerHTML = '';
   const wordRow = el('div', 'q-title-row');
-  wordRow.appendChild(el('div', 'word', w.word));
+  wordRow.appendChild(elHtml('div', 'word serif', escapeHtml(w.word)));
   wordRow.appendChild(speakBtn(w.word));
   back.appendChild(wordRow);
   if (w.phonetic) back.appendChild(el('div', 'phon', w.phonetic));
@@ -164,8 +169,15 @@ async function render() {
   const def = el('div', 'back-def', w.definition || '（无释义记录）');
   if (hasEn) def.classList.add('muted');
   back.appendChild(def);
-  if (ctx && ctx.sentence_translation) back.appendChild(el('div', 'back-ctx', '📖 ' + ctx.sentence_translation));
-  if (w.note) back.appendChild(el('div', 'back-ctx', '📝 ' + w.note));
+  if (ctx && (ctx.context || ctx.sentence_translation)) {
+    const ctxBox = el('div', 'ctx');
+    if (ctx.context) ctxBox.appendChild(elHtml('div', 'ctx-original', highlightCtx(ctx.context, w.word)));
+    if (ctx.sentence_translation) ctxBox.appendChild(elHtml('div', 'ctx-line trans', '<span class="ctx-label">句译</span>' + escapeHtml(ctx.sentence_translation)));
+    if (w.note) ctxBox.appendChild(elHtml('div', 'ctx-line', '<span class="ctx-label">笔记</span>' + escapeHtml(w.note)));
+    back.appendChild(ctxBox);
+  } else if (w.note) {
+    back.appendChild(el('div', 'back-ctx', w.note));
+  }
 
   $('card').classList.remove('hidden');
   $('actions').classList.remove('hidden');
@@ -174,7 +186,8 @@ async function render() {
 }
 
 function updateProgress() {
-  $('tab-title').textContent = `今日复习 · 还剩 ${queue.length - idx} 个`;
+  $('tab-title').textContent = `复习 · 还剩 ${queue.length - idx} 个`;
+  $('review-progress').innerHTML = '今日待复习 <b>' + (queue.length - idx) + '</b> 个词';
 }
 
 function flip() {
@@ -210,21 +223,22 @@ async function answer(id) {
   }
   idx++;
   if (idx >= queue.length) finish();
-  else render();
+  else { render(); updateProgress(); }
 }
 
 function finish() {
   $('card').classList.add('hidden');
   $('actions').classList.add('hidden');
   const tail = againCount ? ' · 忘掉的词已在队列中重现巩固' : '';
-  showDone('🎉 今日复习完成', `本次复习 ${doneWords.size} 个词 · 忘记 ${againCount} 次${tail}`);
+  showDone('今日复习完成', `本次复习 ${doneWords.size} 个词 · 忘记 ${againCount} 次${tail}`);
 }
 
 function showDone(title, sub) {
   $('done-title').textContent = title;
   $('done-sub').textContent = sub;
   $('done').classList.remove('hidden');
-  $('tab-title').textContent = '今日复习';
+  $('review-progress').classList.add('hidden');
+  $('tab-title').textContent = '复习';
 }
 
 // ---------- 查询（理念：离线秒查优先；英英释义在上中文兜底；查词是积累的起点） ----------
@@ -372,7 +386,7 @@ async function mymemoryTranslate(text) {
 function renderQueryCard(p, srcLabel) {
   const card = $('q-card');
   const titleRow = el('div', 'q-title-row');
-  titleRow.appendChild(el('div', 'word', p.word));
+  titleRow.appendChild(elHtml('div', 'word serif', escapeHtml(p.word)));
   titleRow.appendChild(speakBtn(p.word));
   card.appendChild(titleRow);
   if (p.phonetic) card.appendChild(el('div', 'phon', p.phonetic));
@@ -394,11 +408,11 @@ function renderQueryCard(p, srcLabel) {
     if (hasEn) {
       // 有英文区 → 中文默认收起（理念：中文是兜底，不是主释义）
       const zh = el('div', 'zh-block');
-      const head = el('div', 'zh-head', '中文释义 ▾');
+      const head = elHtml('div', 'zh-head', '中文释义 ' + icon('chev'));
       const body = el('div', 'zh-body hidden', zhText);
       head.onclick = () => {
         const collapsed = body.classList.toggle('hidden');
-        head.textContent = '中文释义 ' + (collapsed ? '▾' : '▴');
+        head.classList.toggle('open', !collapsed);
       };
       zh.appendChild(head); zh.appendChild(body);
       card.appendChild(zh);
@@ -406,21 +420,24 @@ function renderQueryCard(p, srcLabel) {
       card.appendChild(el('div', 'back-def', zhText)); // 无英文释义：中文即主释义，直接展示
     }
   }
-  // 语境在场：原句 + 句译 + 词中译法 + 用法（LLM 时）；无语境时提示整句玩法
+  // 语境在场：原句（词高亮）+ 句译 + 词中译法 + 用法（LLM 时）；无语境时提示整句玩法
   if (p.context) {
-    card.appendChild(el('div', 'back-ctx', '📖 ' + p.context));
-    if (p.sentenceTranslation) card.appendChild(el('div', 'back-ctx', '↳ ' + p.sentenceTranslation));
-    if (p.wordInSentence) card.appendChild(el('div', 'back-ctx', '· 本句中：' + p.wordInSentence));
-    if (p.usage) card.appendChild(el('div', 'back-ctx', '· 用法：' + p.usage));
-    else if (p.explain) card.appendChild(el('div', 'back-ctx', '· ' + p.explain));
+    const ctxBox = el('div', 'ctx');
+    ctxBox.appendChild(elHtml('div', 'ctx-original', highlightCtx(p.context, p.word)));
+    if (p.sentenceTranslation) ctxBox.appendChild(elHtml('div', 'ctx-line trans', '<span class="ctx-label">句译</span>' + escapeHtml(p.sentenceTranslation)));
+    if (p.wordInSentence) ctxBox.appendChild(elHtml('div', 'ctx-line', '<span class="ctx-label">本句</span>' + escapeHtml(p.wordInSentence)));
+    if (p.usage) ctxBox.appendChild(elHtml('div', 'ctx-line', '<span class="ctx-label">用法</span>' + escapeHtml(p.usage)));
+    else if (p.explain) ctxBox.appendChild(elHtml('div', 'ctx-line', '<span class="ctx-label">注</span>' + escapeHtml(p.explain)));
+    card.appendChild(ctxBox);
   } else {
-    card.appendChild(el('div', 'back-ctx', '💡 复制整句再触发拾词，可自动带出语境'));
+    card.appendChild(el('div', 'ctx-only', '复制整句再触发拾词，可自动带出语境句译与挖空复习'));
   }
-  const addBtn = el('button', 'btn primary q-add', '＋ 加入生词本');
+  const addBtn = el('button', 'btn primary q-add');
+  addBtn.innerHTML = icon('plus') + '<span>加入生词本</span>';
   addBtn.onclick = async () => {
     addBtn.disabled = true;
     const ok = await addToWordbook(p);
-    addBtn.textContent = ok ? '✓ 已加入（同步中）' : '加入失败，请重试';
+    addBtn.innerHTML = ok ? icon('check') + '<span>已加入生词本</span>' : '<span>加入失败，请重试</span>';
     if (!ok) addBtn.disabled = false;
   };
   card.appendChild(addBtn);
@@ -435,18 +452,30 @@ function renderSenses(en) {
   for (const s of en.senses) {
     const row = el('div', 'en-sense');
     if (s.pos) row.appendChild(el('span', 'pos', rpend.POS_LABEL[s.pos] || s.pos + '.'));
+    const txt = el('span', 'sense-text');
     for (const part of String(s.text || '').split(/([A-Za-z][A-Za-z'-]*)/g)) {
       if (/^[A-Za-z]/.test(part) && hardSet.has(part.toLowerCase())) {
         const b = el('button', 'hard-word', part);
         b.onclick = (ev) => { ev.stopPropagation(); showWordTip(part, hintMap.get(part.toLowerCase())); };
-        row.appendChild(b);
+        txt.appendChild(b);
       } else {
-        row.appendChild(document.createTextNode(part));
+        txt.appendChild(document.createTextNode(part));
       }
     }
+    row.appendChild(txt);
     wrap.appendChild(row);
   }
   return wrap;
+}
+
+/** 语境句中把查询词加粗高亮（先定位后转义，避免实体串扰） */
+function highlightCtx(text, word) {
+  const m = word ? findWordInText(String(text), word, -1) : null;
+  if (!m) return escapeHtml(text);
+  const t = String(text);
+  return escapeHtml(t.slice(0, m.index))
+    + '<b class="ctx-hl">' + escapeHtml(t.slice(m.index, m.index + m.length)) + '</b>'
+    + escapeHtml(t.slice(m.index + m.length));
 }
 
 /** 入库（手机本地）→ 触发同步回流 PC。语境/句译/简单释义已在 runQuery 里算好，随词落库 */
@@ -467,7 +496,7 @@ async function addToWordbook(p) {
     console.error('入库失败', e);
     return false;
   }
-  $('q-src').textContent = '✓ 已加入生词本' + (p.context ? ' · 带语境句' : '');
+  $('q-src').textContent = '已加入生词本' + (p.context ? ' · 带语境句' : '');
   runSync(false);
   if (cardMode) setTimeout(closeCard, 1400); // 悬浮卡：入库后稍候自动关闭回阅读处
   return true;
@@ -561,13 +590,15 @@ function enterCardMode() {
   document.documentElement.classList.add('card-mode');
   switchTab('query');
   applyCardSize();
-  const close = el('button', 'card-close', '✕');
+  const close = el('button', 'card-close');
+  close.innerHTML = icon('x');
+  close.setAttribute('aria-label', '关闭');
   close.onclick = () => closeCard();
   $('q-form').appendChild(close);
   // TTS 错误提示（国产 ROM 无 TTS 引擎/缺语言数据时）
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
   if (P && P.addListener) P.addListener('ttsError', (d) => {
-    $('q-src').textContent = '⚠ ' + ((d && d.message) || '发音失败');
+    $('q-src').textContent = '发音失败：' + ((d && d.message) || '无 TTS 引擎');
   });
   // 悬浮球进入 = 主动查词意图 → 聚焦输入框弹键盘
   setTimeout(() => { const i = $('q-input'); if (i && !i.value) i.focus(); }, 300);
@@ -626,12 +657,25 @@ function closeWordTip() {
 }
 
 function speakBtn(word) {
-  const b = el('button', 'speak-btn', '🔊');
+  const b = el('button', 'speak-btn');
+  b.innerHTML = icon('volume');
+  b.setAttribute('aria-label', '发音');
   b.onclick = (ev) => { ev.stopPropagation(); speak(word); };
   return b;
 }
 
 // ---------- DOM 工具 ----------
+
+/** 线性 SVG 图标（与 index.html 底部导航同源风格） */
+const RP_ICONS = {
+  volume: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+};
+function icon(name) { return RP_ICONS[name] || ''; }
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -662,7 +706,7 @@ async function refreshWords() {
   let words = await rpdb.allWords();
   if (q) words = words.filter((w) => w.word.includes(q));
   if (!words.length) {
-    list.appendChild(el('div', 'empty', q ? '没有匹配的生词' : '📭 生词本还是空的 —— 在电脑端划词积累后，点右上角「同步」拉过来'));
+    list.appendChild(el('div', 'empty', q ? '没有匹配的生词' : '生词本还是空的\n划词积累后会自动出现在这里'));
     return;
   }
   for (const w of words) {
@@ -671,7 +715,9 @@ async function refreshWords() {
     left.appendChild(el('span', 'w', w.word));
     left.appendChild(el('span', 'count', `${w.query_count} 次`));
     left.appendChild(el('span', 'info', new Date(w.last_seen).toLocaleDateString('zh-CN')));
-    const del = el('button', 'del', '删除');
+    const del = el('button', 'del');
+    del.innerHTML = icon('trash');
+    del.setAttribute('aria-label', '删除 ' + w.word);
     del.onclick = async () => { await rpdb.removeWord(w.word); refreshWords(); };
     row.appendChild(left); row.appendChild(del);
     list.appendChild(row);
@@ -726,7 +772,7 @@ async function vocabShowHome() {
   $('vocab-home').classList.remove('hidden');
   const lvl = await rpdb.getMeta('vocabLevel', null);
   $('set-vocab').textContent = lvl && lvl.score ? `约 ${lvl.score} 词（CEFR ${lvl.cefr}）` : '未测';
-  $('vocab-start').textContent = lvl && lvl.score ? '重新测试' : '📊 测词汇量';
+  $('vocab-start').textContent = lvl && lvl.score ? '重新测试' : '测词汇量';
 }
 
 $('vocab-start').onclick = async () => {
@@ -776,13 +822,6 @@ function deviceName() {
   localStorage.setItem('rp-device-name', name);
   return name;
 }
-
-$('unbind').onclick = () => {
-  if (!confirm('解除配对？本机生词数据保留，仅清除连接信息。')) return;
-  localStorage.removeItem('rp-sync');
-  refreshSettings();
-  refreshSyncLine();
-};
 
 $('unbind').onclick = () => {
   if (!confirm('解除配对？本机生词数据保留，仅清除连接信息。')) return;
@@ -877,7 +916,7 @@ async function checkClipboard() {
     const bar = $('clip-bar');
     clearTimeout(bar._t);
     if (isWord) {
-      bar.textContent = '📋 检测到剪贴板：「' + text + '」 点击查词（自动带上所在句子）';
+      bar.textContent = '检测到剪贴板「' + text + '」 · 点击查词';
       bar.onclick = () => {
         bar.classList.add('hidden');
         switchTab('query');
@@ -885,7 +924,7 @@ async function checkClipboard() {
       };
     } else {
       clipSentence = text;
-      bar.textContent = '📋 检测到句子 → 点击粘贴，改成要查的词后查（自动带语境）';
+      bar.textContent = '检测到句子 · 点击粘贴，改成要查的词后查';
       bar.onclick = () => {
         bar.classList.add('hidden');
         switchTab('query');

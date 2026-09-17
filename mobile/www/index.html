@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e0f13">
 <title>拾词 ReadPicks</title>
 <link rel="stylesheet" href="app.css">
 </head>
@@ -14,98 +15,144 @@
   <!-- 主页面（始终进入：查词/复习/词表离线独立可用，配对在设置页） -->
   <div id="page-main" class="page">
     <div class="top">
-      <span id="tab-title">今日复习</span>
-      <button class="sync-btn" id="sync-now">⟳ 同步</button>
+      <div class="top-titles">
+        <h1 id="tab-title">复习</h1>
+        <p class="sync-line" id="sync-line"></p>
+      </div>
+      <button class="icon-btn" id="sync-now" aria-label="同步">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
     </div>
-    <p class="sync-line" id="sync-line"></p>
     <div id="clip-bar" class="clip-bar hidden"></div>
 
-    <!-- 复习 -->
-    <div id="tab-review" class="tabpane">
+    <!-- 复习：语境挖空正面 / 英文释义在上中文兜底背面 -->
+    <section id="tab-review" class="tabpane">
+      <div class="review-meta hidden" id="review-progress"></div>
       <div id="card" class="card hidden">
         <div id="front" class="front"></div>
         <div id="back" class="hidden"></div>
       </div>
       <div class="actions hidden" id="actions">
-        <button id="again">忘记</button>
-        <button id="hard">模糊</button>
-        <button id="good">认识</button>
+        <button id="again" class="grade">忘记</button>
+        <button id="hard" class="grade">模糊</button>
+        <button id="good" class="grade">认识</button>
       </div>
       <div id="done" class="done hidden">
-        <div id="done-title">🎉 今日复习完成</div>
+        <div class="done-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div id="done-title">今日复习完成</div>
         <div class="sub" id="done-sub"></div>
       </div>
-    </div>
+    </section>
 
     <!-- 查询 -->
-    <div id="tab-query" class="tabpane hidden">
+    <section id="tab-query" class="tabpane hidden">
       <form id="q-form" class="q-form">
-        <input type="text" id="q-input" placeholder="输入单词或短语…" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
-        <button class="q-go" type="submit">查</button>
+        <div class="search-field">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>
+          <input type="text" id="q-input" placeholder="输入单词或短语…" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+          <button class="q-go" type="submit" aria-label="查词">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
       </form>
       <p class="q-src" id="q-src"></p>
       <div id="q-card" class="card q-card hidden"></div>
-    </div>
+    </section>
 
     <!-- 词表 -->
-    <div id="tab-words" class="tabpane hidden">
-      <input type="text" id="word-search" class="set-input" placeholder="🔍 搜索生词…" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <section id="tab-words" class="tabpane hidden">
+      <div class="search-field">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>
+        <input type="text" id="word-search" placeholder="搜索生词…" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
       <div class="stats-line" id="words-stats"></div>
       <div class="list" id="words-list"></div>
-    </div>
+    </section>
 
     <!-- 设置 -->
-    <div id="tab-settings" class="tabpane hidden">
+    <section id="tab-settings" class="tabpane hidden">
       <div id="pair-card" class="set-card">
-        <div class="set-title">🔗 连接电脑端</div>
+        <div class="set-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          连接电脑端
+        </div>
         <input type="text" class="set-input" id="pair-input" placeholder="http://192.168.x.x:9723/app/?t=…" autocapitalize="off" autocorrect="off" spellcheck="false">
         <button class="btn primary" id="pair-btn">配对并同步</button>
         <p class="msg" id="pair-msg"></p>
         <p class="set-hint">链接在 PC 端「设置 → 同步 → 显示配对二维码」生成，两端需同一 Wi-Fi。不配对也能查词/复习（数据仅在本机），配对后两端互通。</p>
       </div>
+
       <div class="set-card">
-        <div class="set-row"><span>词汇量水平</span><b id="set-vocab">—</b></div>
+        <div class="set-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          同步状态
+        </div>
+        <div class="set-row"><span>设备名</span><b id="set-device"></b></div>
+        <div class="set-row"><span>上次同步</span><b id="set-lastsync">—</b></div>
+        <div class="set-row"><span>服务端</span><b id="set-server">—</b></div>
+        <button class="btn danger" id="unbind">解除配对</button>
+      </div>
+
+      <div class="set-card">
+        <div class="set-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+          词汇量水平
+        </div>
+        <div class="set-row"><span>当前水平</span><b id="set-vocab">—</b></div>
         <div id="vocab-home" class="btn-row-plain">
-          <button class="btn ghost vocab-start" id="vocab-start">📊 测词汇量</button>
+          <button class="btn ghost vocab-start" id="vocab-start">测词汇量</button>
         </div>
         <div id="vocab-test" class="hidden">
           <div class="vocab-progress-row">
             <span id="vocab-progress">第 1 / 60 题</span>
             <div class="bar"><div id="vocab-bar"></div></div>
           </div>
-          <div class="vocab-word" id="vocab-word">—</div>
+          <div class="vocab-word serif" id="vocab-word">—</div>
           <p class="set-hint" style="margin-top:0">这个词你认识吗？凭直觉快速判断（混有伪词用于校准）。</p>
           <div class="vocab-btns">
-            <button class="btn ghost" id="vocab-unknown">✗ 不认识</button>
-            <button class="btn primary" id="vocab-known">✓ 认识</button>
+            <button class="btn ghost" id="vocab-unknown">不认识</button>
+            <button class="btn primary" id="vocab-known">认识</button>
           </div>
         </div>
         <p class="set-hint">约 60 题 · 2 分钟。结果用于查词时生成适合你的简单英语释义与难词标注，测完自动同步到电脑端。</p>
       </div>
+
       <div class="set-card">
-        <div class="set-row"><span>设备名</span><b id="set-device"></b></div>
-        <div class="set-row"><span>上次同步</span><b id="set-lastsync">—</b></div>
-        <div class="set-row"><span>服务端</span><b id="set-server">—</b></div>
-      </div>
-      <div class="set-card">
-        <div class="set-title">🃏 划词悬浮卡</div>
-        <label class="llm-row"><span>卡片大小</span><b id="card-size-val">72%</b></label>
-        <input type="range" class="set-input" id="card-size" min="60" max="100" step="2" value="72">
-        <label class="llm-row"><span>字号大小</span><b id="font-size-val">100%</b></label>
-        <input type="range" class="set-input" id="font-size" min="80" max="140" step="5" value="100">
+        <div class="set-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><rect x="12" y="13" width="9" height="7" rx="1.5"/></svg>
+          划词与悬浮卡
+        </div>
+        <div class="range-row">
+          <div class="range-head"><span>卡片大小</span><b id="card-size-val">72%</b></div>
+          <input type="range" class="set-input" id="card-size" min="60" max="100" step="2" value="72">
+        </div>
+        <div class="range-row">
+          <div class="range-head"><span>字号大小</span><b id="font-size-val">100%</b></div>
+          <input type="range" class="set-input" id="font-size" min="80" max="140" step="5" value="100">
+        </div>
         <div class="set-row"><span>划词语境（选中即带整句）</span><b id="a11y-status">—</b></div>
         <button class="btn ghost" id="a11y-open">去系统设置开启无障碍</button>
         <p class="set-hint">开启拾词的无障碍服务后，在其他应用选中文字点「拾词」即可自动带出所在句子作语境（挖空复习用）。拾词只读取选中文本所在内容，不上传任何数据。无法划词的界面可复制单词后切到拾词，会自动提示一键查词。</p>
       </div>
+
       <div class="set-card">
-        <div class="set-title">⚽ 全局悬浮球（万能入口）</div>
+        <div class="set-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+          全局悬浮球（万能入口）
+        </div>
         <div class="set-row"><span>悬浮球</span><b id="ball-status">—</b></div>
         <button class="btn ghost" id="ball-toggle">开启悬浮球</button>
         <p class="set-hint">PDF、笔记等自绘选区菜单的应用无法划词？开启悬浮球：小球常驻所有应用之上，在阅读时轻点小球即可弹出查词卡手动输入。需要「显示在其他应用上层」权限（仅授权一次）。</p>
       </div>
+
       <div class="set-card">
-        <div class="set-title">🤖 AI 简单释义（直连）</div>
-        <label class="llm-row"><input type="checkbox" id="llm-enabled"><span>启用（外出查词直连，不依赖电脑）</span></label>
+        <div class="set-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          AI 简单释义（直连）
+        </div>
+        <div class="llm-row"><span>启用（外出查词直连，不依赖电脑）</span><input type="checkbox" class="switch" id="llm-enabled"></div>
         <input type="text" class="set-input" id="llm-baseUrl" placeholder="https://api.deepseek.com/v1" autocapitalize="off" spellcheck="false">
         <input type="password" class="set-input" id="llm-apiKey" placeholder="API Key">
         <input type="text" class="set-input" id="llm-model" placeholder="deepseek-chat" autocapitalize="off" spellcheck="false">
@@ -113,18 +160,28 @@
         <p class="msg" id="llm-msg"></p>
         <p class="set-hint">OpenAI 兼容接口（DeepSeek/通义等），Key 只存在本机。查词时用它生成「适合你词汇水平的简单英语释义」与语境句译——用英语理解英语，与电脑端各自配置、互不影响。</p>
       </div>
-      <div class="set-card">
-        <button class="btn danger" id="unbind">解除配对</button>
-        <p class="set-hint">解除后清除本机配对信息（生词数据保留）。</p>
-      </div>
-    </div>
+    </section>
 
     <!-- 底部导航 -->
     <nav class="tabbar">
-      <button data-tab="review" class="active">🔁 复习</button>
-      <button data-tab="query">🔍 查询</button>
-      <button data-tab="words">🗂️ 词表</button>
-      <button data-tab="settings">⚙️ 设置</button>
+      <div class="tabbar-inner">
+        <button data-tab="review" class="active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span>复习</span>
+        </button>
+        <button data-tab="query">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>
+          <span>查词</span>
+        </button>
+        <button data-tab="words">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>生词本</span>
+        </button>
+        <button data-tab="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          <span>设置</span>
+        </button>
+      </div>
     </nav>
   </div>
 

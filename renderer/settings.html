@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="app-header">
-    <div class="logo">📖</div>
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
     <div>
       <h1>ReadPicks 拾词</h1>
       <div class="sub">阅读中拾取生词 · 语境理解 · 间隔复习</div>
@@ -16,11 +16,11 @@
   </div>
 
   <div class="tabs">
-    <button data-tab="general" class="active">⚙️ 常规</button>
-    <button data-tab="translate">🌐 翻译源</button>
-    <button data-tab="dict">📚 词典</button>
-    <button data-tab="sync">🔄 同步</button>
-    <button data-tab="words">🗂️ 生词本</button>
+    <button data-tab="general" class="active">常规</button>
+    <button data-tab="translate">翻译源</button>
+    <button data-tab="dict">词典</button>
+    <button data-tab="sync">同步</button>
+    <button data-tab="words">生词本</button>
   </div>
 
   <!-- 常规 -->
@@ -44,7 +44,7 @@
       <div class="row"><button class="btn" id="save-general">保存</button><span class="msg" id="general-msg"></span></div>
     </div>
     <div class="card">
-      <h3>📊 词汇量自测</h3>
+      <h3>词汇量自测</h3>
       <div id="vocab-status"></div>
       <div id="vocab-test" class="hidden">
         <div class="vocab-progress-row">
@@ -54,8 +54,8 @@
         <div class="vocab-word" id="vocab-word">—</div>
         <p class="hint hint-flat">这个词你认识吗？凭直觉快速判断，不要猜太久（混有伪词用于校准）。</p>
         <div class="btn-row vocab-btns">
-          <button class="btn" id="vocab-known">✓ 认识</button>
-          <button class="btn ghost" id="vocab-unknown">✗ 不认识</button>
+          <button class="btn" id="vocab-known">认识</button>
+          <button class="btn ghost" id="vocab-unknown">不认识</button>
         </div>
         <span class="msg" id="vocab-msg"></span>
       </div>
@@ -133,7 +133,7 @@
   <!-- 同步 -->
   <div id="tab-sync" class="pane">
     <div class="card">
-      <h3>📱 手机端同步</h3>
+      <h3>手机端同步</h3>
       <div id="sync-status"></div>
       <div class="btn-row">
         <button class="btn" id="sync-toggle">启动局域网同步</button>

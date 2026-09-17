@@ -99,10 +99,10 @@ async function refreshDict() {
   const st = await api.dictStatus();
   const box = document.getElementById('dict-status');
   if (st.installed) {
-    box.innerHTML = `<div class="status-box ok">✅ 本地词典已安装（${st.sizeMB} MB）· 76 万词条离线可用</div>`;
+    box.innerHTML = `<div class="status-box ok">✓ 本地词典已安装（${st.sizeMB} MB）· 76 万词条离线可用</div>`;
     document.getElementById('dict-download').textContent = '重新下载词典';
   } else {
-    box.innerHTML = '<div class="status-box warn">⚠️ 本地词典未安装 — 单词查询将依赖在线翻译</div>';
+    box.innerHTML = '<div class="status-box warn">⚠ 本地词典未安装 — 单词查询将依赖在线翻译</div>';
   }
 }
 document.getElementById('dict-download').onclick = async () => {
@@ -118,7 +118,7 @@ document.getElementById('dict-download').onclick = async () => {
     } else if (p.phase === 'info') {
       msg(m, p.message);
     } else if (p.phase === 'done') {
-      msg(m, '✅ ' + p.message, 'ok');
+      msg(m, '✓ ' + p.message, 'ok');
       refreshDict();
       btn.disabled = false;
     } else if (p.phase === 'error') {
@@ -133,7 +133,7 @@ document.getElementById('dict-install-file').onclick = async () => {
   const r = await api.dictInstallFile();
   const m = document.getElementById('dict-msg');
   if (r && r.canceled) return;
-  if (r && r.ok) msg(m, '✅ 词典安装完成，离线查询已可用', 'ok');
+  if (r && r.ok) msg(m, '✓ 词典安装完成，离线查询已可用', 'ok');
   else if (r && r.error) msg(m, '❌ 安装失败：' + r.error, 'err');
 };
 
@@ -159,7 +159,7 @@ async function refreshWords() {
   list.innerHTML = '';
   const words = await api.wordsList();
   if (!words.length) {
-    list.appendChild(Object.assign(document.createElement('div'), { className: 'empty', textContent: '📭 还没有生词 — 阅读时选中单词按热键即可积累' }));
+    list.appendChild(Object.assign(document.createElement('div'), { className: 'empty', textContent: '还没有生词 — 阅读时选中单词按热键即可积累' }));
     return;
   }
   for (const w of words) {
@@ -194,7 +194,7 @@ async function refreshSync() {
   const btn = document.getElementById('sync-toggle');
   if (st.running) {
     box.innerHTML =
-      `<div class="status-box ok"><span class="sb-icon">✅</span><div class="sb-body">` +
+      `<div class="status-box ok"><span class="sb-icon">✓</span><div class="sb-body">` +
       `<div class="sb-main">局域网同步运行中 · <b>${st.ip || '无局域网地址'}</b> : ${st.port}</div>` +
       `<div class="sb-sub">手机连同一 Wi-Fi，扫码或访问页面地址即可配对</div></div></div>`;
     btn.textContent = '停止同步';
@@ -260,7 +260,7 @@ async function refreshVocab() {
   document.getElementById('vocab-quit').classList.add('hidden');
   if (lvl && lvl.score) {
     box.innerHTML =
-      `<div class="status-box ok"><span class="sb-icon">✅</span><div class="sb-body">` +
+      `<div class="status-box ok"><span class="sb-icon">✓</span><div class="sb-body">` +
       `<div class="sb-main">已测试：词汇量约 <b>${lvl.score}</b> 词（CEFR ${lvl.cefr}）· ${new Date(lvl.takenAt).toLocaleDateString('zh-CN')}</div>` +
       `<div class="sb-sub">查词将按此水平生成英文释义</div></div></div>`;
     document.getElementById('vocab-start').textContent = '重新测试';
@@ -335,7 +335,7 @@ async function vocabFinish() {
   // 立即更新状态卡片
   const st = document.getElementById('vocab-status');
   st.innerHTML =
-    `<div class="status-box ok"><span class="sb-icon">✅</span><div class="sb-body">` +
+    `<div class="status-box ok"><span class="sb-icon">✓</span><div class="sb-body">` +
     `<div class="sb-main">已测试：词汇量约 <b>${r.score}</b> 词（CEFR ${r.cefr}）</div>` +
     `<div class="sb-sub">查词将按此水平生成英文释义</div></div></div>`;
 }

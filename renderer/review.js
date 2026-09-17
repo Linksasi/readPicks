@@ -12,7 +12,7 @@ async function load() {
   queue = await api.reviewDue();
   idx = 0;
   if (!queue.length) {
-    showDone('✅ 没有到期的单词', '去阅读中积累生词吧');
+    showDone('没有到期的单词', '去阅读中积累生词吧');
     return;
   }
   render();
@@ -52,9 +52,9 @@ function render() {
   if (hasEn) def.classList.add('muted'); // 有英文区 → 中文降为灰色对照
   back.appendChild(def);
   if (w.history && w.history.sentence_translation) {
-    back.appendChild(el('div', 'back-ctx', '📖 ' + w.history.sentence_translation));
+    back.appendChild(el('div', 'back-ctx', w.history.sentence_translation));
   }
-  if (w.note) back.appendChild(el('div', 'back-ctx', '📝 ' + w.note));
+  if (w.note) back.appendChild(el('div', 'back-ctx', w.note));
 
   document.getElementById('card').classList.remove('hidden');
   document.getElementById('actions').classList.remove('hidden');
@@ -113,7 +113,7 @@ function finish() {
   document.getElementById('card').classList.add('hidden');
   document.getElementById('actions').classList.add('hidden');
   const tail = againCount ? ` · 忘掉的词已在队列中重现巩固` : '';
-  showDone('🎉 今日复习完成', `本次复习 ${doneWords.size} 个词 · 忘记 ${againCount} 次${tail}`);
+  showDone('今日复习完成', `本次复习 ${doneWords.size} 个词 · 忘记 ${againCount} 次${tail}`);
 }
 
 function showDone(title, sub) {
