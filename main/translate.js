@@ -191,11 +191,31 @@ async function llm(text, p, wantJson = false, task = 'lookup') {
     temperature: 0.3,
   };
   if (wantJson) body.response_format = { type: 'json_object' };
-  const data = await fetchJson(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${p.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  // 查词/释义是结构化任务：思考链几乎不提升质量，却要多生成几百 token（实测耗时翻倍）→ 默认关闭
+  if (p.noThink !== false) body.thinking = { type: 'disabled' };
+  if (wantJson && Number(p.maxTokens) > 0) body.max_tokens = Number(p.maxTokens);
+
+  const t0 = Date.now();
+  let data;
+  try {
+    data = await fetchJson(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${p.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    // 部分 OpenAI 兼容接口不认识 thinking（或不认 max_tokens）→ 去掉这些非标准字段重试一次
+    if (!/HTTP 4\d\d/.test(e.message)) throw e;
+    const fb = { ...body };
+    delete fb.thinking;
+    delete fb.max_tokens;
+    data = await fetchJson(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${p.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(fb),
+    });
+  }
+  console.log(`[llm] ${task} 耗时 ${Date.now() - t0} ms`);
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw new Error(`LLM 无返回：${data?.error?.message || ''}`);
   if (wantJson) return content;

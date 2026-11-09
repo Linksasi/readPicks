@@ -17,6 +17,17 @@ api.onLookupResult((p) => {
     document.getElementById('loading').classList.remove('hidden');
     return;
   }
+  // 渐进式：本地结果先到（LLM 还在跑）→ 先渲染，但保持 busy，窗口不会中途消失
+  if (p.partial) {
+    queryBusy = true;
+    api.setBusy(true);
+    clearTimeout(leaveTimer);
+    document.getElementById('loading').classList.add('hidden');
+    hideError();
+    if (p.kind === 'word') renderWord(p);
+    else renderSentence(p);
+    return; // 最近查询等最终结果一起刷新，避免连续两次重排
+  }
   // 结果（含错误）到达：恢复自动隐藏
   queryBusy = false;
   api.setBusy(false);
@@ -92,6 +103,9 @@ function renderWord(p) {
   } else {
     meta.textContent = p.dictInstalled ? '' : '设置中可一键安装离线词典';
   }
+
+  // 渐进式渲染：这份是本地结果、LLM 部分还在路上 → 显示「生成中」提示
+  document.getElementById('llm-pending').classList.toggle('hidden', !p.partial);
 
   // 英英释义（测过词汇量后出现）：LLM 简单释义优先，否则 WordNet 义项列表 + 难词标注
   const enSec = document.getElementById('en-def-section');

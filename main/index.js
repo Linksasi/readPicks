@@ -32,7 +32,10 @@ async function handleQuery(raw) {
     context.push(text); // 原文入语境历史（大小写敏感匹配不依赖原文）
     // 立即弹出「查询中」窗口，查询在后台进行（感知零延迟）
     windowMgr.showPopup({ kind, raw: query, loading: true });
-    const payload = kind === 'word' ? await lookupWord(query) : await translateText(query);
+    // 单词：本地词典/语境先出结果上屏（渐进式），LLM 部分就绪后再补一次
+    const payload = kind === 'word'
+      ? await lookupWord(query, (partial) => { if (seq === querySeq) windowMgr.sendResult(partial); })
+      : await translateText(query);
     if (seq !== querySeq) return payload; // 已有更新的查询，丢弃过期结果
     windowMgr.showPopup(payload);
     return payload;
@@ -55,7 +58,8 @@ async function handleQuery(raw) {
   }
 }
 
-async function lookupWord(word) {
+/** 组装单词卡。onProgress：本地部分就绪时先回调一次（渐进式上屏），最终再返回完整 payload */
+async function lookupWord(word, onProgress) {
   const payload = {
     kind: 'word',
     word,
@@ -105,6 +109,15 @@ async function lookupWord(word) {
   if (sentence) {
     payload.context = sentence;
     payload.contextCloze = context.makeCloze(sentence, word);
+  }
+
+  // 本次要等 LLM（秒级）：先把本地词典/语境结果推上屏，别让整张卡卡在「查询中」
+  const cfgNow = config.load();
+  const useLlm = cfgNow.provider === 'llm' && !!cfgNow.providers.llm?.apiKey;
+  const llmPending = useLlm && !!(sentence || !dict || (cfgNow.vocabLevel && cfgNow.vocabLevel.score));
+  if (llmPending && typeof onProgress === 'function') onProgress({ ...payload, partial: true });
+
+  if (sentence) {
     try {
       const ctx = await translate.lookupInContext(word, sentence);
       payload.sentenceTranslation = ctx.sentence_translation;
@@ -220,7 +233,8 @@ function registerIpc() {
   onIpc('popup:pin', (_e, v) => windowMgr.setPinned(!!v));
   onIpc('popup:busy', (_e, v) => windowMgr.setBusy(!!v));
 
-  handleIpc('open-settings', () => windowMgr.createSettings());
+  // 打开设置窗：只回一个标量——BrowserWindow 无法跨 IPC 结构化克隆（会报 "An object could not be cloned"）
+  handleIpc('open-settings', () => { windowMgr.createSettings(); return true; });
 
   handleIpc('note:set', (_e, word, note) => { db.setNote(word, note); return true; });
 

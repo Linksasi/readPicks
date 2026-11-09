@@ -76,6 +76,12 @@ function showPopup(payload) {
   win.showInactive(); // 不抢焦点，不打断阅读
 }
 
+/** 只把新结果推给已显示的悬浮窗，不重新定位（渐进式渲染：本地结果先上屏，LLM 结果后补） */
+function sendResult(payload) {
+  const win = createPopup();
+  if (win && !win.isDestroyed()) win.webContents.send('lookup-result', payload);
+}
+
 function setPinned(v) {
   pinned = !!v;
 }
@@ -138,4 +144,4 @@ function createReview() {
   return reviewWin;
 }
 
-module.exports = { createPopup, showPopup, hidePopup, forceHidePopup, setPinned, setBusy, isPinned, getPopup, getSettingsWindow, createSettings, createReview };
+module.exports = { createPopup, showPopup, sendResult, hidePopup, forceHidePopup, setPinned, setBusy, isPinned, getPopup, getSettingsWindow, createSettings, createReview };
