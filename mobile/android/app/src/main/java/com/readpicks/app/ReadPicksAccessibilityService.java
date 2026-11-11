@@ -2,9 +2,27 @@ package com.readpicks.app;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.PixelFormat;
+import android.graphics.Rect;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
+import android.util.DisplayMetrics;
+import android.view.Gravity;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 /**
  * 跨软件取词语境：监听全系统「文本选择变化」事件，缓存选中位置的节点全文与选中下标。
@@ -15,17 +33,35 @@ public class ReadPicksAccessibilityService extends AccessibilityService {
     public static volatile boolean running = false;
     private static volatile ReadPicksAccessibilityService instance = null;
 
+    private WindowManager bubbleWm;
+    private TextView bubbleView;
+    private WindowManager.LayoutParams bubbleParams;
+    private final Handler bubbleHandler = new Handler(Looper.getMainLooper());
+    private Runnable bubbleShowRunnable;
+    private Runnable bubbleHideRunnable;
+    private String bubbleText = "";
+
+    private TextRecognizer ocrRecognizer;
+    private OcrSelectionOverlay ocrOverlay;
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         running = true;
         instance = this;
+        bubbleWm = (WindowManager) getSystemService(WINDOW_SERVICE);
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
         running = false;
         instance = null;
+        hideBubble();
+        removeOcrOverlay();
+        if (ocrRecognizer != null) {
+            ocrRecognizer.close();
+            ocrRecognizer = null;
+        }
         return super.onUnbind(intent);
     }
 
@@ -50,7 +86,43 @@ public class ReadPicksAccessibilityService extends AccessibilityService {
         android.util.Log.d("RPA11y", "selection event pkg=" + eventPkg
                 + " src=" + (node != null) + " idx=" + start + ".." + end
                 + " textLen=" + (text == null ? -1 : text.length()));
+        // 选区收起/密码框：不显示浮钮
+        if (start >= 0 && end <= start) {
+            hideBubble();
+            return;
+        }
+        if (event.isPassword() || (node != null && node.isPassword())) {
+            hideBubble();
+            return;
+        }
         cacheSelection(text, start, end, eventPkg);
+        String selected = extractSelection(text, start, end, event);
+        if (selected.isEmpty() || selected.length() > 300) {
+            hideBubble();
+            return;
+        }
+        Rect bounds = new Rect();
+        try {
+            if (node != null) node.getBoundsInScreen(bounds);
+        } catch (Exception ignored) {
+        }
+        scheduleBubble(selected, bounds);
+    }
+
+    /** 取选区文本：优先用节点下标；WebView 等只给事件文本时，仅接受短文本 */
+    private static String extractSelection(CharSequence text, int start, int end, AccessibilityEvent event) {
+        if (text == null) return "";
+        if (start >= 0 && end > start && end <= text.length()) {
+            return text.subSequence(start, end).toString().trim();
+        }
+        if (event.getText() != null && !event.getText().isEmpty()) {
+            CharSequence t = event.getText().get(0);
+            if (t != null) {
+                String s = t.toString().trim();
+                if (!s.isEmpty() && s.length() <= 80 && !s.contains("\n")) return s;
+            }
+        }
+        return "";
     }
 
     private static void cacheSelection(CharSequence text, int start, int end, String pkg) {
@@ -124,8 +196,260 @@ public class ReadPicksAccessibilityService extends AccessibilityService {
         return null;
     }
 
+    // ---------- 选区浮钮（不依赖目标 App 的 PROCESS_TEXT 菜单） ----------
+
+    private void scheduleBubble(String text, Rect bounds) {
+        if (bubbleWm == null || !Settings.canDrawOverlays(this)) return;
+        bubbleText = text;
+        if (bubbleShowRunnable != null) bubbleHandler.removeCallbacks(bubbleShowRunnable);
+        final int left = bounds.left;
+        final int top = bounds.top;
+        final int right = bounds.right;
+        final int bottom = bounds.bottom;
+        bubbleShowRunnable = () -> showBubble(bubbleText, left, top, right, bottom);
+        bubbleHandler.postDelayed(bubbleShowRunnable, 180);
+    }
+
+    private void showBubble(String text, int left, int top, int right, int bottom) {
+        if (text == null || text.isEmpty() || !Settings.canDrawOverlays(this)) return;
+        try {
+            if (bubbleView == null) {
+                bubbleView = new TextView(this);
+                bubbleView.setText("拾词");
+                bubbleView.setTextColor(Color.WHITE);
+                bubbleView.setTextSize(13);
+                bubbleView.setGravity(Gravity.CENTER);
+                bubbleView.setPadding(dp(10), 0, dp(10), 0);
+                bubbleView.setBackgroundResource(R.drawable.selection_bubble_bg);
+                bubbleView.setOnClickListener(v -> {
+                    String t = bubbleText;
+                    hideBubble();
+                    if (t != null && !t.isEmpty()) openCard(t);
+                });
+                bubbleParams = new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        dp(34),
+                        overlayType(),
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                        PixelFormat.TRANSLUCENT);
+                bubbleParams.gravity = Gravity.TOP | Gravity.START;
+                bubbleWm.addView(bubbleView, bubbleParams);
+            }
+            bubbleText = text;
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            int w = dp(56);
+            int h = dp(34);
+            int x = right > left ? right - w : dm.widthPixels - w - dp(12);
+            int y = bottom > top ? top - h - dp(6) : dp(120);
+            x = Math.max(dp(6), Math.min(x, dm.widthPixels - w - dp(6)));
+            y = Math.max(dp(30), Math.min(y, dm.heightPixels - h - dp(80)));
+            bubbleParams.x = x;
+            bubbleParams.y = y;
+            bubbleWm.updateViewLayout(bubbleView, bubbleParams);
+            if (bubbleHideRunnable != null) bubbleHandler.removeCallbacks(bubbleHideRunnable);
+            bubbleHideRunnable = this::hideBubble;
+            bubbleHandler.postDelayed(bubbleHideRunnable, 8000);
+        } catch (Exception e) {
+            android.util.Log.d("RPA11y", "bubble show failed: " + e.getMessage());
+            hideBubble();
+        }
+    }
+
+    private void hideBubble() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            bubbleHandler.post(this::hideBubble);
+            return;
+        }
+        if (bubbleShowRunnable != null) {
+            bubbleHandler.removeCallbacks(bubbleShowRunnable);
+            bubbleShowRunnable = null;
+        }
+        if (bubbleHideRunnable != null) {
+            bubbleHandler.removeCallbacks(bubbleHideRunnable);
+            bubbleHideRunnable = null;
+        }
+        if (bubbleView != null && bubbleWm != null) {
+            try {
+                bubbleWm.removeView(bubbleView);
+            } catch (Exception ignored) {
+            }
+            bubbleView = null;
+            bubbleParams = null;
+        }
+    }
+
+    private void openCard(String text) {
+        openCard(text, null);
+    }
+
+    private void openCard(String text, String context) {
+        try {
+            Intent i = new Intent(this, CardActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            i.putExtra(Intent.EXTRA_PROCESS_TEXT, text);
+            if (context != null && !context.isEmpty()) {
+                i.putExtra(CardActivity.EXTRA_OCR_CONTEXT, context);
+            }
+            startActivity(i);
+            android.util.Log.d("RPA11y", "bubble openCard len=" + text.length()
+                    + " ctx=" + (context == null ? 0 : context.length()));
+        } catch (Exception e) {
+            android.util.Log.d("RPA11y", "bubble openCard failed: " + e.getMessage());
+        }
+    }
+
+    private int overlayType() {
+        return Build.VERSION.SDK_INT >= 26
+                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                : WindowManager.LayoutParams.TYPE_PHONE;
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    // ---------- OCR 框选（无文本层界面：PDF / 图片 / 游戏） ----------
+
+    /** 悬浮球长按入口：截当前屏幕并进入框选模式 */
+    public static void captureForOcr() {
+        ReadPicksAccessibilityService svc = instance;
+        if (svc == null) return;
+        svc.doCaptureForOcr();
+    }
+
+    private void doCaptureForOcr() {
+        bubbleHandler.post(() -> {
+            if (Build.VERSION.SDK_INT < 30) {
+                toast("系统版本太低，不支持截屏取词");
+                return;
+            }
+            if (!Settings.canDrawOverlays(this)) {
+                toast("请先允许「显示在其他应用上层」");
+                return;
+            }
+            toast("正在截屏…");
+            OcrCapture.capture(this, bubbleHandler, new OcrCapture.Callback() {
+                @Override
+                public void onBitmap(Bitmap bmp) {
+                    bubbleHandler.post(() -> showOcrOverlay(bmp));
+                }
+
+                @Override
+                public void onError(String message) {
+                    bubbleHandler.post(() -> toast(message));
+                }
+            });
+        });
+    }
+
+    private void showOcrOverlay(Bitmap bmp) {
+        hideBubble();
+        removeOcrOverlay();
+        if (bmp == null) {
+            toast("截屏失败");
+            return;
+        }
+        if (!Settings.canDrawOverlays(this)) {
+            bmp.recycle();
+            toast("请先允许「显示在其他应用上层」");
+            return;
+        }
+        ocrOverlay = new OcrSelectionOverlay(this, bmp, new OcrSelectionOverlay.Listener() {
+            @Override
+            public void onCropped(OcrSelectionOverlay.CropResult result) {
+                bubbleHandler.post(() -> {
+                    removeOcrOverlay();
+                    runOcr(result);
+                });
+            }
+
+            @Override
+            public void onCancel() {
+                bubbleHandler.post(ReadPicksAccessibilityService.this::removeOcrOverlay);
+            }
+        });
+        try {
+            ocrOverlay.show();
+        } catch (Exception e) {
+            android.util.Log.d("RPA11y", "ocr overlay failed: " + e.getMessage());
+            removeOcrOverlay();
+            toast("不能显示框选层");
+        }
+    }
+
+    private void runOcr(OcrSelectionOverlay.CropResult result) {
+        if (result == null || result.text == null) return;
+        toast("识别中…");
+        if (ocrRecognizer == null) {
+            ocrRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+        }
+        final Bitmap bmp = result.text;
+        ocrRecognizer.process(InputImage.fromBitmap(bmp, 0))
+                .addOnSuccessListener(text -> {
+                    String s = cleanOcr(text == null ? "" : text.getText());
+                    bubbleHandler.post(() -> {
+                        if (!bmp.isRecycled()) bmp.recycle();
+                        if (s.isEmpty()) {
+                            toast("没识别到文字");
+                            return;
+                        }
+                        if (s.trim().split("\\s+").length > 1) openCardPick(s);
+                        else openCard(s);
+                    });
+                })
+                .addOnFailureListener(e -> bubbleHandler.post(() -> {
+                    if (!bmp.isRecycled()) bmp.recycle();
+                    toast("识别失败：" + e.getMessage());
+                }));
+    }
+
+    /** 多词：先开分词选择卡，用户点哪个词再查哪个词 */
+    private void openCardPick(String sentence) {
+        try {
+            Intent i = new Intent(this, CardActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            i.putExtra(Intent.EXTRA_PROCESS_TEXT, sentence);
+            i.putExtra(CardActivity.EXTRA_PICK_WORD, true);
+            startActivity(i);
+            android.util.Log.d("RPA11y", "pickCard len=" + sentence.length());
+        } catch (Exception e) {
+            android.util.Log.d("RPA11y", "pickCard failed: " + e.getMessage());
+        }
+    }
+
+    private static String cleanOcr(String raw) {
+        String s = String.valueOf(raw == null ? "" : raw).replace('\n', ' ').replace('\r', ' ');
+        s = s.replaceAll("^[\\s\\p{Punct}]+", "").replaceAll("[\\s\\p{Punct}]+$", "");
+        return s.replaceAll("\\s+", " ").trim();
+    }
+
+    private void removeOcrOverlay() {
+        if (ocrOverlay != null) {
+            ocrOverlay.remove();
+            ocrOverlay = null;
+        }
+    }
+
+    private void toast(String msg) {
+        bubbleHandler.post(() -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show());
+    }
+
     @Override
     public void onInterrupt() {
         // 无前台打断处理；服务仍保持运行
+        hideBubble();
+        removeOcrOverlay();
+    }
+
+    @Override
+    public void onDestroy() {
+        hideBubble();
+        removeOcrOverlay();
+        if (ocrRecognizer != null) {
+            ocrRecognizer.close();
+            ocrRecognizer = null;
+        }
+        super.onDestroy();
     }
 }

@@ -235,3 +235,97 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; outline: none; 
 
 .hidden { display: none !important; }
 .loading { padding: 30px; text-align: center; color: var(--muted); }
+
+/* ============================================================
+   PC 悬浮卡 v3：与手机端 v5 同一套纸面/衬线/墨色语言
+   ============================================================ */
+.card {
+  margin: 10px; border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(16, 17, 20, 0.18), 0 2px 8px rgba(16, 17, 20, 0.08);
+}
+header { padding: 8px 12px 4px; }
+.brand {
+  flex: none; font-size: 10px; letter-spacing: 0.18em; color: var(--muted);
+  opacity: 0.7; -webkit-app-region: no-drag; user-select: none;
+}
+#drag-zone { height: 24px; }
+.icon-btn { padding: 3px 6px; border-radius: 6px; }
+#pin.active { color: var(--fg); }
+#pin svg { display: block; }
+
+.word-row { align-items: center; gap: 9px; }
+.word-row h1 { font-size: 30px; font-weight: 600; letter-spacing: 0; }
+#speak-en, #speak-us {
+  border: 1px solid var(--hairline); border-radius: 6px;
+  padding: 1px 6px; font-size: 10px; letter-spacing: 0.06em;
+  color: var(--muted); font-weight: 600;
+}
+#speak-en:hover, #speak-us:hover {
+  background: transparent; border-color: var(--fg); color: var(--fg);
+}
+
+.badges { margin: 9px 0 2px; gap: 6px; }
+.badge {
+  background: transparent; border: 1px solid var(--hairline);
+  color: var(--muted); border-radius: 6px;
+  font-size: 10.5px; font-weight: 500; padding: 2px 8px;
+}
+.badge.star, .badge.ok, .badge.warn, .badge.hard {
+  background: transparent; color: var(--muted);
+}
+.badge.hard { color: var(--danger); }
+
+.section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+}
+.defs .pos {
+  flex: 0 0 28px; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+}
+.en-sense .pos {
+  background: none; color: var(--muted); border-radius: 0;
+  min-width: 32px; padding: 0; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.hard-word {
+  color: var(--fg); text-decoration-color: var(--muted);
+}
+.hard-word:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.context mark { background: transparent; color: var(--accent); padding: 0; }
+#context-section .context {
+  border-left: 2px solid var(--accent-soft); padding-left: 12px;
+}
+.section { margin-top: 14px; padding-top: 12px; }
+.context-trans { color: var(--fg2); }
+.word-in-sentence { color: var(--accent); font-weight: 600; }
+
+.btn {
+  background: var(--fg); color: var(--bg);
+  border-radius: 10px; padding: 8px 16px; font-size: 12.5px; font-weight: 600;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn.small {
+  background: transparent; border: 1px solid var(--hairline); color: var(--fg);
+}
+.btn.small:hover { border-color: var(--fg); }
+
+#note {
+  background: transparent; border: 1px solid var(--hairline);
+  border-radius: 12px; padding: 8px 10px;
+}
+#note:focus { border-color: var(--fg); box-shadow: none; }
+
+.chip {
+  background: transparent; border: 1px solid var(--hairline);
+  color: var(--fg); border-radius: 6px; font-weight: 500;
+}
+.chip:hover { border-color: var(--fg); }
+.chip small { color: var(--muted); }
+
+.word-tip {
+  border-radius: 12px;
+  box-shadow: 0 10px 32px rgba(16, 17, 20, 0.25);
+}
+.defs-details summary:hover { color: var(--fg); }
+.hist-item { border-left: 2px solid var(--accent-soft); }

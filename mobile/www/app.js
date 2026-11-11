@@ -64,7 +64,7 @@ async function runSync(explicit) {
   if (syncing) return;
   if (!rpsync.isPaired()) {
     $('sync-line').className = 'sync-line';
-    $('sync-line').textContent = '未连接电脑：查词/复习离线可用，配对后自动同步（设置页）';
+    $('sync-line').textContent = '';
     return;
   }
   syncing = true;
@@ -75,7 +75,7 @@ async function runSync(explicit) {
     const r = await rpsync.doSync();
     const t = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
     $('sync-line').className = 'sync-line';
-    $('sync-line').textContent = `✓ ${t} 已同步 · 收到 ${r.pulledWords + r.pulledQueries} 条变更`;
+    $('sync-line').textContent = `已同步 ${t} · ${r.pulledWords + r.pulledQueries} 条变更`;
     // 同步落地后当前页数字/队列可能变化（首次同步尤其明显）
     const active = document.querySelector('.tabbar button.active');
     if (active) switchTab(active.dataset.tab);
@@ -93,7 +93,7 @@ async function runSync(explicit) {
 async function refreshSyncLine() {
   if (!rpsync.isPaired()) {
     $('sync-line').className = 'sync-line';
-    $('sync-line').textContent = '未连接电脑：查词/复习离线可用，配对后自动同步（设置页）';
+    $('sync-line').textContent = '';
     return;
   }
   const last = await rpdb.getMeta('lastSyncAt', 0);
@@ -140,8 +140,15 @@ async function render() {
     front.appendChild(el('div', 'hint', '根据语境回忆单词'));
     front.appendChild(elHtml('div', 'cloze', clozeHtml(ctx.context_cloze)));
   } else {
-    front.appendChild(elHtml('div', 'cloze', '<span class="blank">？</span>'));
-    front.appendChild(el('div', 'hint', '这个单词还记得吗？'));
+    // 没有保存语境时，用释义作回忆线索，绝不只剩一个问号
+    const prompt = (ctx && ctx.simple_def) || w.definition || '';
+    if (prompt) {
+      front.appendChild(el('div', 'hint', ctx && ctx.simple_def ? '根据英文释义回忆单词' : '根据中文释义回忆单词'));
+      front.appendChild(elHtml('div', 'front-def', maskWordHtml(prompt, w.word)));
+    } else {
+      front.appendChild(el('div', 'word serif', escapeHtml(w.word)));
+      front.appendChild(el('div', 'hint', '回想它的意思，轻点卡片查看答案'));
+    }
   }
   front.appendChild(el('div', 'reveal-pill', '轻点卡片查看答案'));
 
@@ -186,7 +193,6 @@ async function render() {
 }
 
 function updateProgress() {
-  $('tab-title').textContent = `复习 · 还剩 ${queue.length - idx} 个`;
   $('review-progress').innerHTML = '今日待复习 <b>' + (queue.length - idx) + '</b> 个词';
 }
 
@@ -339,6 +345,13 @@ async function runQuery(raw) {
 
   // 划词语境（无障碍句）：LLM 出句译 + 词中译法，MyMemory 兜底句译——语境永远在场
   let selCtx = await captureSelectionContext(word);
+  // OCR 语境：框选时同时识别了词上下几行，抽出的句子优先补上
+  const pendingOcr = ocrContext;
+  ocrContext = null;
+  if (!selCtx && pendingOcr) {
+    const sentence = pendingOcr.trim();
+    if (sentence) selCtx = { context: sentence, cloze: clozeSentence(sentence, word) };
+  }
   // 剪贴板整句兜底：输入的词是刚复制句子的一部分 → 整句作语境（挖空该词）
   if (!selCtx && clipSentence) {
     const sentence = clipSentence.trim().replace(/\s+/g, ' ');
@@ -574,13 +587,73 @@ function cardSize() {
   return v >= 60 && v <= 100 ? v : 72;
 }
 
-/** 卡片宽度滑杆 + 内容高度 → 原生（顶部锚定 + 自适应高度，封顶 60% 屏高） */
+const CARD_POS_KEY = 'rp-card-pos';
+let viewportBound = false;
+
+function viewportSize() {
+  const vv = window.visualViewport;
+  return {
+    w: (vv && vv.width) || window.innerWidth,
+    h: (vv && vv.height) || window.innerHeight,
+  };
+}
+
+/** 卡片宽度/位置/最大高度：全部是 HTML，不再同步原生窗口 */
 function applyCardSize() {
-  const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
-  if (!P || !P.setCardSize) return;
-  const maxH = Math.round((window.screen.height || 640) * 0.6);
-  const h = Math.min(document.body.scrollHeight, maxH);
-  P.setCardSize({ widthPct: cardSize(), contentHeight: h });
+  if (!cardMode) return;
+  const card = $('page-main');
+  if (!card) return;
+  const pct = Math.max(60, Math.min(92, cardSize()));
+  card.style.width = pct + 'vw';
+  fitCardToViewport();
+}
+
+function fitCardToViewport() {
+  if (!cardMode) return;
+  const card = $('page-main');
+  if (!card) return;
+  const { w: vw, h: vh } = viewportSize();
+  card.style.maxHeight = Math.max(220, Math.round(vh * 0.78)) + 'px';
+  const r = card.getBoundingClientRect();
+  let x = parseFloat(card.style.left);
+  let y = parseFloat(card.style.top);
+  if (!Number.isFinite(x)) x = vw / 2;
+  if (!Number.isFinite(y)) y = vh / 2;
+  const clamp = (v, min, max) => Math.max(Math.min(min, max), Math.min(v, Math.max(min, max)));
+  x = clamp(x, r.width / 2 + 8, vw - r.width / 2 - 8);
+  y = clamp(y, r.height / 2 + 8, vh - r.height / 2 - 8);
+  card.style.left = Math.round(x) + 'px';
+  card.style.top = Math.round(y) + 'px';
+}
+
+function restoreCardPosition() {
+  const card = $('page-main');
+  if (!card) return;
+  let pos = null;
+  try { pos = JSON.parse(localStorage.getItem(CARD_POS_KEY) || 'null'); } catch { /* ignore */ }
+  const { w: vw, h: vh } = viewportSize();
+  card.style.left = ((pos && Number.isFinite(pos.x)) ? pos.x : vw / 2) + 'px';
+  card.style.top = ((pos && Number.isFinite(pos.y)) ? pos.y : vh / 2) + 'px';
+}
+
+function saveCardPosition() {
+  const card = $('page-main');
+  if (!card) return;
+  const r = card.getBoundingClientRect();
+  localStorage.setItem(CARD_POS_KEY, JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
+}
+
+function bindViewport() {
+  if (viewportBound) return;
+  viewportBound = true;
+  const fit = () => fitCardToViewport();
+  window.addEventListener('resize', fit);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+  // 释义/句译是异步长出来的：内容变高后重新钳制位置，避免卡片被顶出屏幕
+  if (window.ResizeObserver) {
+    const card = $('page-main');
+    if (card) new ResizeObserver(fit).observe(card);
+  }
 }
 
 function enterCardMode() {
@@ -589,19 +662,53 @@ function enterCardMode() {
   document.body.classList.add('card-mode');
   document.documentElement.classList.add('card-mode');
   switchTab('query');
-  applyCardSize();
+  bindViewport();
+  // 窗外遮罩：点它就关闭；卡片在它上面
+  const scrim = el('div', 'card-scrim');
+  scrim.onclick = () => closeCard();
+  document.body.appendChild(scrim);
+  // 顶部拖动把手：拖动 HTML 卡片，上滑收起到悬浮球
+  const handle = el('div', 'card-handle');
+  handle.appendChild(el('span'));
+  $('tab-query').insertBefore(handle, $('q-form'));
+  bindCardHandle(handle);
+  // 细线顶栏：左侧品牌，右侧粘贴/关闭
+  const top = el('div', 'card-topline');
+  top.appendChild(el('span', 'card-brand', '拾词'));
+  const actions = el('div', 'card-actions');
+  top.appendChild(actions);
+  $('tab-query').insertBefore(top, $('q-form'));
   const close = el('button', 'card-close');
   close.innerHTML = icon('x');
   close.setAttribute('aria-label', '关闭');
   close.onclick = () => closeCard();
-  $('q-form').appendChild(close);
+  // 无选区/无 PROCESS_TEXT 的界面：先复制，再点「粘贴」直接查
+  const paste = el('button', 'card-paste', '粘贴');
+  paste.setAttribute('aria-label', '粘贴剪贴板查词');
+  paste.onclick = async () => {
+    const PT = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+    if (!PT || !PT.readClipboard) return;
+    try {
+      const r = await PT.readClipboard();
+      const t = ((r && r.text) || '').trim();
+      if (t) { $('q-input').value = ''; prefillQuery(t); }
+    } catch { /* 剪贴板不可用：忽略 */ }
+  };
+  actions.appendChild(paste);
+  actions.appendChild(close);
   // TTS 错误提示（国产 ROM 无 TTS 引擎/缺语言数据时）
   const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
   if (P && P.addListener) P.addListener('ttsError', (d) => {
     $('q-src').textContent = '发音失败：' + ((d && d.message) || '无 TTS 引擎');
   });
-  // 悬浮球进入 = 主动查词意图 → 聚焦输入框弹键盘
-  setTimeout(() => { const i = $('q-input'); if (i && !i.value) i.focus(); }, 300);
+  restoreCardPosition();
+  applyCardSize();
+  // 悬浮球进入 = 主动查词意图 → 聚焦输入框弹键盘（分词选择模式除外）
+  setTimeout(() => {
+    const i = $('q-input');
+    if (i && !i.value && !document.body.classList.contains('pick-mode')) i.focus();
+  }, 300);
+  requestAnimationFrame(applyCardSize);
 }
 
 function closeCard() {
@@ -612,6 +719,66 @@ function closeCard() {
   else window.close(); // 浏览器兜底
 }
 
+function minimizeCard() {
+  const P = window.Capacitor && window.Capacitor.Plugins;
+  const PT = P && P.ProcessText;
+  if (PT && PT.minimizeCard) PT.minimizeCard();
+  else closeCard();
+}
+
+/** 拖动把手：直接移动 HTML 卡片；快速上滑收起，慢拖只移动并记忆位置 */
+function bindCardHandle(handle) {
+  const card = $('page-main');
+  if (!card) return;
+  let startX = 0;
+  let startY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+  let moved = false;
+  let downAt = 0;
+
+  handle.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    const r = card.getBoundingClientRect();
+    startX = t.clientX;
+    startY = t.clientY;
+    startLeft = r.left + r.width / 2;
+    startTop = r.top + r.height / 2;
+    moved = false;
+    downAt = Date.now();
+    e.preventDefault();
+  }, { passive: false });
+
+  handle.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+    const { w: vw, h: vh } = viewportSize();
+    const r = card.getBoundingClientRect();
+    const clamp = (v, min, max) => Math.max(Math.min(min, max), Math.min(v, Math.max(min, max)));
+    const x = clamp(startLeft + dx, r.width / 2 + 8, vw - r.width / 2 - 8);
+    const y = clamp(startTop + dy, r.height / 2 + 8, vh - r.height / 2 - 8);
+    card.style.left = Math.round(x) + 'px';
+    card.style.top = Math.round(y) + 'px';
+    e.preventDefault();
+  }, { passive: false });
+
+  const end = (e) => {
+    const t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+    const dx = (t ? t.clientX : startX) - startX;
+    const dy = (t ? t.clientY : startY) - startY;
+    const dt = Date.now() - downAt;
+    if (moved && dt < 350 && dy < -50 && Math.abs(dy) > Math.abs(dx)) {
+      minimizeCard();
+    } else if (moved) {
+      saveCardPosition();
+    }
+  };
+  handle.addEventListener('touchend', end);
+  handle.addEventListener('touchcancel', end);
+}
+
 // ---------- 划词入口（PROCESS_TEXT：系统选择菜单「拾词」→ 预填查询） ----------
 
 function setupProcessText() {
@@ -619,7 +786,13 @@ function setupProcessText() {
   if (!P) return;
   const handle = (d) => {
     if (d && d.card) enterCardMode();
+    if (d && d.pick && d.text) {
+      showWordPicker(d.text);
+      return;
+    }
+    if (d && d.context) ocrContext = d.context;
     if (d && d.text) prefillQuery(d.text);
+    else if (d && d.clipboard) prefillFromClipboard();
   };
   if (P.getPending) P.getPending().then(handle).catch(() => {});
   if (P.addListener) P.addListener('processText', handle);
@@ -639,16 +812,93 @@ function prefillQuery(text) {
   runQuery(t);
 }
 
+/** OCR 整句分词：每个词一个按钮，点哪个词就把整句作为语境查哪个词 */
+function showWordPicker(sentence) {
+  const text = String(sentence || '').replace(/\s+/g, ' ').trim();
+  if (!text) return;
+  ocrContext = text;
+  document.body.classList.add('pick-mode');
+  switchTab('query');
+  const card = $('q-card');
+  if (card) card.classList.add('hidden');
+  // 让 enterCardMode 的“空输入框自动聚焦”不要弹键盘
+  $('q-input').value = text;
+  let picker = $('word-picker');
+  if (!picker) {
+    picker = el('div', 'word-picker');
+    picker.id = 'word-picker';
+    $('tab-query').insertBefore(picker, $('q-src'));
+  }
+  picker.innerHTML = '';
+  picker.classList.remove('hidden');
+  picker.appendChild(el('div', 'pick-hint', '整句已识别 · 点一个词查询'));
+  const tokens = el('div', 'pick-tokens');
+  const parts = text.split(/([A-Za-z][A-Za-z0-9'’\-]*)/g);
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^[A-Za-z]/.test(part)) {
+      const b = el('button', 'pick-word', part);
+      b.onclick = () => choosePickedWord(part);
+      tokens.appendChild(b);
+    } else {
+      tokens.appendChild(document.createTextNode(part));
+    }
+  }
+  picker.appendChild(tokens);
+  $('q-src').textContent = '整句作为语境；点上面的词查词';
+  requestAnimationFrame(applyCardSize);
+}
+
+function choosePickedWord(word) {
+  const text = $('q-input').value;
+  document.body.classList.remove('pick-mode');
+  const picker = $('word-picker');
+  if (picker) picker.classList.add('hidden');
+  const card = $('q-card');
+  if (card) card.classList.remove('hidden');
+  $('q-input').value = word;
+  $('q-src').textContent = '';
+  if (!ocrContext) ocrContext = text;
+  runQuery(word);
+}
+
+/** 悬浮球在没有选区时（WebView 常见）读剪贴板：单词直接查，句子预填 */
+async function prefillFromClipboard() {
+  const PT = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ProcessText;
+  if (!PT || !PT.readClipboard) return;
+  try {
+    const r = await PT.readClipboard();
+    const t = ((r && r.text) || '').trim();
+    if (!t) return;
+    const word = t.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, '').trim();
+    const isWord = /^[A-Za-z][A-Za-z' -]{0,39}$/.test(word);
+    const isSentence = /^[A-Za-z][A-Za-z' ,.!?;:'"()-]{9,199}$/.test(t) && t.split(/\s+/).length >= 2;
+    if (isWord) {
+      $('q-input').value = word;
+      runQuery(word);
+      return;
+    }
+    if (isSentence) {
+      clipSentence = t;
+      $('q-input').value = t;
+      $('q-input').focus();
+      $('q-src').textContent = '已读取剪贴板句子：改成要查的词后查';
+    }
+  } catch { /* 剪贴板不可用：保留空输入 */ }
+}
+
 // ---------- 难词浮层（手机端简化：底部浮出，仅展示已有提示） ----------
 
 let tipEl = null;
 function showWordTip(word, hint) {
   closeWordTip();
   const tip = el('div', 'word-tip');
-  tip.appendChild(el('div', 'word-tip-head', word));
+  const head = el('div', 'word-tip-head', word);
+  if (hint && hint.base) head.appendChild(el('span', 'word-tip-base', '原形 ' + hint.base));
+  tip.appendChild(head);
   if (hint && hint.zh) tip.appendChild(el('div', 'word-tip-zh', hint.zh));
   if (hint && hint.en) tip.appendChild(el('div', 'word-tip-en', hint.en));
-  if (!hint || (!hint.zh && !hint.en)) tip.appendChild(el('div', 'word-tip-en', '（无简释记录）'));
+  if (!hint || (!hint.zh && !hint.en)) tip.appendChild(el('div', 'word-tip-en', '（离线词典未收录这个词形）'));
   document.body.appendChild(tip);
   tipEl = tip;
 }
@@ -732,6 +982,7 @@ async function refreshSettings() {
   $('pair-card').classList.toggle('hidden', paired);
   $('set-device').textContent = localStorage.getItem('rp-device-name') || deviceName();
   $('set-server').textContent = paired ? (cfg.serverUrl || rpsync.apiBase()) : '未配对（离线模式）';
+  $('unbind').classList.toggle('hidden', !paired);
   refreshCardSize();
   refreshFontScale();
   refreshA11y();
@@ -892,6 +1143,7 @@ $('font-size').addEventListener('input', () => {
 
 let lastClip = '';
 let clipSentence = null;
+let ocrContext = null;
 
 /** 在句子上为词做挖空（首个词边界命中） */
 function clozeSentence(sentence, word) {
@@ -899,6 +1151,15 @@ function clozeSentence(sentence, word) {
   const re = new RegExp('(^|[^A-Za-z])(' + esc + ')(?![A-Za-z])', 'i');
   if (!re.test(sentence)) return null;
   return sentence.replace(re, (all, pre, hit) => pre + '{{c1::' + hit + '}}');
+}
+
+/** 释义作正面提示时，把目标词本身打码，避免直接看答案 */
+function maskWordHtml(text, word) {
+  const safe = escapeHtml(String(text || ''));
+  const w = String(word || '').trim();
+  if (!w) return safe;
+  const re = new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+  return safe.replace(re, '<span class="blank">______</span>');
 }
 
 async function checkClipboard() {

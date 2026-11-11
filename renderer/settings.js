@@ -1,4 +1,5 @@
 const api = window.tranen;
+document.getElementById('open-review').onclick = () => api.openReview();
 
 // ---------- Tabs ----------
 document.querySelectorAll('.tabs button').forEach((btn) => {

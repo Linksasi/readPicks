@@ -2,8 +2,8 @@ package com.readpicks.app;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -11,15 +11,16 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.PluginHandle;
 
 /**
- * 划词悬浮卡：PROCESS_TEXT 拉起的真·对话框窗口（windowIsFloating）。
- * 窗口本身只有卡片大小——窗口外由系统合成，必然露出源应用 + 对话框压暗，
- * 不依赖 WebView 透明（部分设备不可靠）。关闭即回到阅读处，不打断心流。
+ * 划词悬浮卡（方案 1）：全屏透明 Activity，卡片本身是 HTML 里的圆角 div。
+ * 窗口不再做卡片大小/圆角裁切，源应用和 scrim 都在下面，CSS 负责纸面、阴影和动画。
  */
 public class CardActivity extends BridgeActivity {
 
     private static volatile CardActivity instance = null;
-    private volatile float widthPct = 72f;
-    private volatile int contentHeightCss = -1; // JS 回报的内容高度（CSS px），-1 = 未知
+    public static final String EXTRA_PREFILL_CLIPBOARD = "com.readpicks.app.PREFILL_CLIPBOARD";
+    public static final String EXTRA_OCR_CONTEXT = "com.readpicks.app.OCR_CONTEXT";
+    public static final String EXTRA_PICK_WORD = "com.readpicks.app.PICK_WORD";
+    private boolean closing = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -27,18 +28,25 @@ public class CardActivity extends BridgeActivity {
         registerPlugin(ProcessTextPlugin.class);
         registerPlugin(SelectionPlugin.class);
         super.onCreate(savedInstanceState);
-        // 屏幕居中（用户偏好）；高度自适应内容
-        getWindow().setGravity(android.view.Gravity.CENTER);
-        applyWindowSize();
+        // BridgeActivity 会把 Activity 主题换成 AppTheme.NoActionBar，透明窗底被覆盖；钉回 CardTheme
+        setTheme(R.style.CardTheme);
+        getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         clearParentBackgrounds();
+        FloatingBallService.setVisible(false);
         forwardProcessText(getIntent());
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        applyWindowSize();
+    public void onBackPressed() {
+        finishCard();
+    }
+
+    @Override
+    public void onPause() {
+        FloatingBallService.setVisible(true);
+        super.onPause();
     }
 
     @Override
@@ -50,60 +58,72 @@ public class CardActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        FloatingBallService.setVisible(true);
+        closing = true;
         if (instance == this) instance = null;
         super.onDestroy();
     }
 
-    /** JS 同步卡片尺寸：宽度滑杆百分比 + 内容高度（自适应，封顶 60% 屏高） */
-    public static void applySize(float wPct, int contentCss) {
+    /** 上滑收起：有悬浮球就留下球，没有就只是关闭卡片 */
+    public static void minimize() {
         CardActivity a = instance;
         if (a == null) return;
-        a.widthPct = Math.max(60f, Math.min(100f, wPct));
-        a.contentHeightCss = contentCss;
-        a.runOnUiThread(a::applyWindowSize);
+        a.runOnUiThread(a::minimizeNow);
     }
 
-    private void applyWindowSize() {
-        DisplayMetrics dm = getResources().getDisplayMetrics();
-        int w = Math.round(dm.widthPixels * widthPct / 100f);
-        int h;
-        if (contentHeightCss > 0) {
-            h = Math.min(Math.round(contentHeightCss * dm.density) + dp(8), Math.round(dm.heightPixels * 0.6f));
-        } else {
-            h = Math.round(dm.heightPixels * 0.55f); // JS 首报前的初始高度
+    private void minimizeNow() {
+        boolean hasBall = FloatingBallService.running;
+        closing = true;
+        finish();
+        if (hasBall) {
+            android.widget.Toast.makeText(this, "已收起到悬浮球", android.widget.Toast.LENGTH_SHORT).show();
         }
-        android.util.Log.d("RPA11y", "applyWindowSize screenW=" + dm.widthPixels
-                + " wPct=" + widthPct + " -> w=" + w + " h=" + h);
-        getWindow().setLayout(w, h);
     }
 
-    private int dp(int v) {
-        return Math.round(v * getResources().getDisplayMetrics().density);
+    public static void close() {
+        CardActivity a = instance;
+        if (a == null) return;
+        a.runOnUiThread(a::finishCard);
     }
 
-    /** 清除 WebView 上层容器的主题白底（让窗口的圆角白底透出来） */
+    private void finishCard() {
+        if (closing) return;
+        closing = true;
+        finish();
+    }
+
+    /** 全屏透明窗口：把 WebView 到 decor 之间的白底/内边距全部清掉 */
     private void clearParentBackgrounds() {
         View layer = getBridge().getWebView();
+        layer.setPadding(0, 0, 0, 0);
         while (layer.getParent() instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) layer.getParent();
             if (vg == getWindow().getDecorView()) break;
             ((View) vg).setBackgroundColor(Color.TRANSPARENT);
+            ((View) vg).setPadding(0, 0, 0, 0);
             layer = vg;
         }
+        getWindow().getDecorView().setBackgroundColor(Color.TRANSPARENT);
+        getWindow().getDecorView().setPadding(0, 0, 0, 0);
     }
 
     private void forwardProcessText(Intent intent) {
         if (intent == null) return;
-        // 两种入口文本：PROCESS_TEXT（系统选择菜单）与 SEND（应用自带菜单的「分享」）
         CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
         if (text == null || text.length() == 0) {
             text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
         }
         if (text == null) text = "";
-        android.util.Log.d("RPA11y", "forward len=" + text.length() + " act=" + getIntent().getAction());
+        boolean prefillClipboard = intent.getBooleanExtra(EXTRA_PREFILL_CLIPBOARD, false);
+        boolean pickWord = intent.getBooleanExtra(EXTRA_PICK_WORD, false);
+        String ocrContext = intent.getStringExtra(EXTRA_OCR_CONTEXT);
+        android.util.Log.d("RPA11y", "forward len=" + text.length() + " clip=" + prefillClipboard
+                + " pick=" + pickWord
+                + " ctx=" + (ocrContext == null ? 0 : ocrContext.length())
+                + " act=" + getIntent().getAction());
         PluginHandle handle = getBridge().getPlugin("ProcessText");
         if (handle != null && handle.getInstance() instanceof ProcessTextPlugin) {
-            ((ProcessTextPlugin) handle.getInstance()).receive(text.toString(), true);
+            ((ProcessTextPlugin) handle.getInstance()).receive(text.toString(), true, prefillClipboard, ocrContext, pickWord);
         }
     }
 }

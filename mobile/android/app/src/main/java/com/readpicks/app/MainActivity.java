@@ -1,7 +1,11 @@
 package com.readpicks.app;
 
 import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.Color;
 import android.os.Bundle;
+
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.PluginHandle;
@@ -13,6 +17,16 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ProcessTextPlugin.class);
         registerPlugin(SelectionPlugin.class);
         super.onCreate(savedInstanceState);
+        // BridgeActivity 会把主题换成 AppTheme_NoActionBar，默认状态栏是 AppCompat 的 #757575
+        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+        int paper = Color.parseColor(night ? "#0E0F13" : "#F7F7F8");
+        getWindow().setStatusBarColor(paper);
+        getWindow().setNavigationBarColor(paper);
+        WindowInsetsControllerCompat bars =
+                new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+        bars.setAppearanceLightStatusBars(!night);
+        bars.setAppearanceLightNavigationBars(!night);
         forwardProcessText(getIntent());
     }
 

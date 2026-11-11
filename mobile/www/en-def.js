@@ -42,10 +42,20 @@ function levelInfo(score) {
   return { cefr: toCefr(score || 0), maxBnc };
 }
 
+/** mini 词典词条：先查原词，再按 lemma 还原（exercised → exercise） */
+function miniEntry(mini, word) {
+  const w = String(word || '').toLowerCase();
+  if (!mini || !mini.words) return null;
+  if (mini.words[w]) return { entry: mini.words[w], base: w };
+  const base = mini.lemma && mini.lemma[w];
+  if (base && mini.words[base]) return { entry: mini.words[base], base };
+  return null;
+}
+
 /** mini 词典里的 bnc：未收录 = -1（视为难词），收录无频 = 0（视为难词） */
 function miniBnc(mini, word) {
-  const e = mini && mini.words[word];
-  return e ? (e.b || 0) : -1;
+  const hit = miniEntry(mini, word);
+  return hit ? (hit.entry.b || 0) : -1;
 }
 
 /** 标注释义文本中超出用户水平的难词（与 PC annotateHardWords 同语义） */
@@ -71,14 +81,19 @@ function firstSense(def) {
   return sense.trim().slice(0, 90);
 }
 
-/** 难词就地化解提示：mini 词典中文首义 + 英文首义 */
+/** 难词就地化解提示：mini 词典中文首义 + 英文首义（词形还原后取） */
 function hardWordHints(hardWords, mini) {
   return (hardWords || []).map((w) => {
-    const e = mini && mini.words[w];
-    if (!e) return { word: w, zh: '', en: '' };
-    const tline = String(e.t || '').split('\n').map((s) => s.trim()).find(Boolean) || '';
+    const hit = miniEntry(mini, w);
+    if (!hit) return { word: w, base: '', zh: '', en: '' };
+    const tline = String(hit.entry.t || '').split('\n').map((s) => s.trim()).find(Boolean) || '';
     const tm = tline.match(/^[a-z]+\.\s*(.*)$/i);
-    return { word: w, zh: (tm ? tm[1] : tline).slice(0, 60), en: firstSense(e.d) };
+    return {
+      word: w,
+      base: hit.base !== w ? hit.base : '',
+      zh: (tm ? tm[1] : tline).slice(0, 60),
+      en: firstSense(hit.entry.d),
+    };
   });
 }
 

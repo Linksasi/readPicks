@@ -17,18 +17,42 @@ public class ProcessTextPlugin extends Plugin {
 
     private String pendingText = null;
     private boolean pendingCard = false;
+    private boolean pendingClipboard = false;
+    private String pendingContext = null;
+    private boolean pendingPick = false;
 
     public void receive(String text) {
-        receive(text, false);
+        receive(text, false, false, null);
     }
 
     /** card=true：由悬浮卡（CardActivity）拉起，网页切换到卡片模式渲染 */
     public void receive(String text, boolean card) {
+        receive(text, card, false, null);
+    }
+
+    /** prefillClipboard=true：没有选区（如 WebView）时，让网页在前台读剪贴板预填 */
+    public void receive(String text, boolean card, boolean prefillClipboard) {
+        receive(text, card, prefillClipboard, null);
+    }
+
+    /** context：OCR 同时识别出的所在句，交给卡片做句译/挖空 */
+    public void receive(String text, boolean card, boolean prefillClipboard, String context) {
+        receive(text, card, prefillClipboard, context, false);
+    }
+
+    /** pick=true：text 是 OCR 识别出的整句，由网页分词后让用户点词 */
+    public void receive(String text, boolean card, boolean prefillClipboard, String context, boolean pick) {
         pendingText = text;
         pendingCard = card;
+        pendingClipboard = prefillClipboard;
+        pendingContext = context;
+        pendingPick = pick;
         JSObject data = new JSObject();
         data.put("text", text);
         data.put("card", card);
+        data.put("clipboard", prefillClipboard);
+        data.put("context", context == null ? "" : context);
+        data.put("pick", pick);
         notifyListeners("processText", data);
     }
 
@@ -37,22 +61,23 @@ public class ProcessTextPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("text", pendingText == null ? "" : pendingText);
         r.put("card", pendingCard);
+        r.put("clipboard", pendingClipboard);
+        r.put("context", pendingContext == null ? "" : pendingContext);
+        r.put("pick", pendingPick);
         call.resolve(r);
     }
 
     /** 关闭悬浮卡（finish CardActivity，回到源应用）——Capacitor 8 下 App 插件未自动注册，用确定性原生实现 */
     @PluginMethod
     public void closeCard(PluginCall call) {
-        getActivity().runOnUiThread(() -> getActivity().finish());
+        CardActivity.close();
         call.resolve();
     }
 
-    /** JS 同步卡片尺寸：宽度百分比（屏幕）+ 内容高度（CSS px，自适应封顶） */
+    /** 上滑收起：有悬浮球就留下球，没有就关闭 */
     @PluginMethod
-    public void setCardSize(PluginCall call) {
-        Float w = call.getFloat("widthPct");
-        Integer h = call.getInt("contentHeight");
-        CardActivity.applySize(w == null ? 72f : w, h == null ? -1 : h);
+    public void minimizeCard(PluginCall call) {
+        CardActivity.minimize();
         call.resolve();
     }
 

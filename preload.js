@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('tranen', {
   hidePopup: () => ipcRenderer.send('popup:hide'),
   hidePopupForce: () => ipcRenderer.send('popup:hide-force'),
   openSettings: () => ipcRenderer.invoke('open-settings'),
+  openReview: () => ipcRenderer.invoke('open-review'),
   pin: (v) => ipcRenderer.send('popup:pin', v),
   setBusy: (v) => ipcRenderer.send('popup:busy', v),
   noteSet: (word, note) => ipcRenderer.invoke('note:set', word, note),

@@ -5,5 +5,5 @@
     <string name="package_name">com.readpicks.app</string>
     <string name="custom_url_scheme">com.readpicks.app</string>
     <string name="accessibility_label">拾词划词语境</string>
-    <string name="accessibility_desc">开启后，在其他应用里选中单词即可带出所在句子作为语境（拾词只读取选中文本，不上传任何数据，数据仅在你的电脑与手机之间同步）。</string>
+    <string name="accessibility_desc">开启后，在其他应用里选中文字可点「拾词」浮钮，或长按悬浮球截图框选取词；同时读取选中位置所在句子作为语境。选中文本只用于你发起的查词：本地词典与复习数据留在本机，使用在线翻译/LLM 时才会把查询文本发往对应服务。</string>
 </resources>

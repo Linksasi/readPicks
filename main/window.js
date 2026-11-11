@@ -33,7 +33,7 @@ function createPopup() {
     fullscreenable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    hasShadow: true,
+    hasShadow: false,
     backgroundColor: '#00000000',
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
   });
@@ -117,7 +117,7 @@ function createSettings() {
   settingsWin = new BrowserWindow({
     width: 560,
     height: 700,
-    title: 'TranEn 设置',
+    title: '拾词 · 设置',
     autoHideMenuBar: true,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
   });
@@ -135,7 +135,7 @@ function createReview() {
   reviewWin = new BrowserWindow({
     width: 500,
     height: 380,
-    title: 'TranEn 今日复习',
+    title: '拾词 · 今日复习',
     autoHideMenuBar: true,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
   });

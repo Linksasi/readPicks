@@ -235,6 +235,7 @@ function registerIpc() {
 
   // 打开设置窗：只回一个标量——BrowserWindow 无法跨 IPC 结构化克隆（会报 "An object could not be cloned"）
   handleIpc('open-settings', () => { windowMgr.createSettings(); return true; });
+  handleIpc('open-review', () => { windowMgr.createReview(); return true; });
 
   handleIpc('note:set', (_e, word, note) => { db.setNote(word, note); return true; });
 

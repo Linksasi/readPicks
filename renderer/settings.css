@@ -385,3 +385,98 @@ textarea { resize: vertical; }
 .qr-box svg { width: 100%; height: 100%; }
 .qr-url { font-size: 12px; color: var(--muted); word-break: break-all; text-align: center; max-width: 260px; }
 .qr-actions { justify-content: center; }
+
+/* ============================================================
+   PC 设置页 v3：扁平分组 · 细线 · 墨色主按钮
+   ============================================================ */
+body { padding: 24px 26px 32px; }
+.app-header { gap: 12px; margin-bottom: 18px; }
+.logo {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--fg); box-shadow: none;
+}
+.logo svg { width: 19px; height: 19px; }
+.app-header h1 {
+  font-family: Georgia, "Noto Serif", "Source Serif 4", serif;
+  font-size: 23px; font-weight: 600; letter-spacing: 0;
+}
+.app-header .sub { font-size: 11.5px; margin-top: 3px; }
+.header-actions { margin-left: auto; }
+.header-actions .btn { padding: 7px 14px; font-size: 12px; }
+
+/* 标签页：文字 + 下划线，不再是蓝色胶囊 */
+.tabs {
+  background: transparent; border: none; border-bottom: 1px solid var(--border);
+  border-radius: 0; box-shadow: none; padding: 0; gap: 24px; margin-bottom: 20px;
+}
+.tabs button {
+  flex: 0 0 auto; padding: 10px 0; border-radius: 0;
+  color: var(--muted); font-size: 13px; font-weight: 500;
+}
+.tabs button:hover { background: none; color: var(--fg2); }
+.tabs button.active {
+  background: none; color: var(--fg);
+  box-shadow: inset 0 -2px 0 var(--fg); font-weight: 600;
+}
+
+/* 分组：直接铺在纸面上，用细线分隔 */
+.card {
+  background: transparent; border: none; border-radius: 0; box-shadow: none;
+  padding: 14px 0 8px; margin: 0; border-top: 1px solid var(--border);
+}
+.card:first-of-type { border-top: none; padding-top: 0; }
+.card h3 {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 12px; gap: 6px;
+}
+
+.row { margin-bottom: 12px; }
+.row > label { flex: 0 0 122px; color: var(--fg2); font-size: 13px; }
+input[type=text], input[type=password], select {
+  background: transparent; border: none; border-bottom: 1px solid var(--border);
+  border-radius: 0; padding: 8px 0; font-size: 13.5px;
+}
+input:focus, select:focus { box-shadow: none; border-bottom-color: var(--fg); }
+textarea {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 10px;
+}
+textarea:focus { box-shadow: none; border-color: var(--fg); }
+.hint { font-size: 11.5px; line-height: 1.8; }
+.switch input:checked + .slider { background: var(--fg); }
+
+.btn {
+  background: var(--fg); color: var(--bg);
+  border-radius: 10px; padding: 8px 16px;
+  font-size: 12.5px; font-weight: 600;
+}
+.btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+.btn.ghost:hover { border-color: var(--fg); }
+.btn.danger { background: transparent; border: 1px solid var(--border); color: var(--err); }
+.btn-row { margin-top: 8px; }
+
+.stats-line { gap: 14px; margin-bottom: 8px; }
+.stat-chip {
+  background: none; border: none; border-radius: 0; padding: 0;
+  font-size: 12px; font-weight: 500; color: var(--muted);
+}
+.list { border: none; border-radius: 0; }
+.word-row { padding: 12px 2px; }
+.word-row:hover { background: transparent; }
+.word-row .w { font-family: Georgia, "Noto Serif", serif; font-size: 16px; font-weight: 600; }
+.word-row .count { background: none; color: var(--muted); padding: 0; font-size: 11px; font-weight: 500; }
+.word-row button:hover { background: transparent; color: var(--err); }
+
+.status-box { background: transparent; border: 1px solid var(--border); border-radius: 10px; }
+.progress div { background: var(--fg); }
+.vocab-progress-row .bar div { background: var(--fg); }
+.vocab-score .cefr { color: var(--fg); }
+.vocab-bucket .bar div { background: var(--fg); }
+.sync-device-row { border: none; border-top: 1px solid var(--border); border-radius: 0; padding: 10px 0; }
+.qr-dialog { border-radius: 18px; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22); }
+.status-box.ok, .status-box.warn { background: transparent; }
+.tabs button:focus, .tabs button:focus-visible { outline: none; }
+.status-box .sb-icon { display: none; }
+.hint { margin-left: 0; margin-top: 2px; }

@@ -31,8 +31,19 @@ function render() {
     front.appendChild(el('div', 'hint', '根据语境回忆单词：'));
     front.appendChild(elHtml('div', 'cloze', clozeHtml(w.history.context_cloze)));
   } else {
-    front.appendChild(elHtml('div', 'cloze', '<span class="blank">？</span>'));
-    front.appendChild(el('div', 'hint', '这个单词还记得吗？点击显示答案'));
+    // 没有保存语境时，用释义作回忆线索，绝不只剩一个问号
+    const enSenses = w.enDefinition && w.enDefinition.senses && w.enDefinition.senses.length
+      ? w.enDefinition.senses.map((s) => s.text).join(' ')
+      : '';
+    const prompt = w.simpleDef || enSenses || w.definition || '';
+    if (prompt) {
+      const isEn = !!(w.simpleDef || enSenses);
+      front.appendChild(el('div', 'hint', isEn ? '根据英文释义回忆单词：' : '根据中文释义回忆单词：'));
+      front.appendChild(elHtml('div', 'front-def', maskWordHtml(prompt, w.word)));
+    } else {
+      front.appendChild(el('div', 'word', w.word));
+      front.appendChild(el('div', 'hint', '回想它的意思，点击显示答案'));
+    }
   }
 
   // 背面（理念：英文释义在上、中文弱化兜底——复习也用英语理解英语）
@@ -83,6 +94,15 @@ function showBack() {
 function clozeHtml(cloze) {
   // {{c1::word}} → <span class="blank">_____</span>（先转义再注入，防 XSS）
   return escapeHtml(cloze).replace(/\{\{c1::(.*?)\}\}/g, '<span class="blank">________</span>');
+}
+
+/** 释义作正面提示时，把目标词本身打码，避免直接看答案 */
+function maskWordHtml(text, word) {
+  const safe = escapeHtml(String(text || ''));
+  const w = String(word || '').trim();
+  if (!w) return safe;
+  const re = new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+  return safe.replace(re, '<span class="blank">______</span>');
 }
 
 // ---------- 打分 / 忘记重排队 ----------

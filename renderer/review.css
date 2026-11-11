@@ -117,3 +117,45 @@ body {
 .word-tip-head { font-weight: 700; font-size: 13.5px; color: var(--accent); margin-bottom: 2px; }
 .word-tip-zh { color: var(--fg); }
 .word-tip-en { color: var(--muted); }
+
+/* ============================================================
+   PC 复习窗口 v3：与手机端 v5 统一
+   ============================================================ */
+body { padding: 20px 22px; }
+.top { font-size: 12px; }
+.key-hint { font-size: 10.5px; opacity: 0.7; }
+.card {
+  margin-top: 14px; border-radius: 18px; box-shadow: none;
+  padding: 24px 22px;
+}
+.front { display: flex; flex-direction: column; justify-content: center; flex: 1; gap: 10px; }
+.word { font-size: 33px; font-weight: 600; letter-spacing: 0; }
+.cloze { font-size: 19px; line-height: 1.85; }
+.cloze .blank { border-bottom: 1.5px solid var(--accent); font-weight: 600; }
+.en-sense .pos {
+  background: none; color: var(--muted); border-radius: 0;
+  min-width: 30px; padding: 0; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.hard-word { color: var(--fg); text-decoration-color: var(--muted); }
+.hard-word:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.back-ctx {
+  border-left: 2px solid var(--accent-soft); padding-left: 12px;
+}
+.actions { margin-top: 14px; }
+.actions button {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 12px; padding: 12px 0; font-size: 14.5px; font-weight: 600;
+}
+#again { background: var(--surface); color: var(--danger); }
+#hard { background: var(--surface); color: var(--warn); }
+#good { background: var(--surface); color: var(--ok); }
+.actions button:active { background: var(--fill); transform: scale(0.98); }
+.key { border-color: currentColor; opacity: 0.4; }
+.done { font-family: Georgia, "Noto Serif", serif; font-size: 21px; font-weight: 600; }
+.word-tip { border-radius: 12px; }
+
+/* 关闭只保留系统标题栏的 X，页面内不再重复 */
+#close { display: none; }
+.top { position: relative; justify-content: flex-start; }
+.key-hint { position: absolute; left: 50%; transform: translateX(-50%); }

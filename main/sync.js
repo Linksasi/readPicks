@@ -150,7 +150,24 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
+// Capacitor 的 WebView 页面 origin 是 https://localhost；它跨源访问本机 LAN API，
+// 浏览器会先发 OPTIONS 预检。预检不带 x-sync-token，必须在鉴权前放行并回 CORS 头。
+const CORS_ORIGIN_RE = /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?|capacitor:\/\/localhost)$/;
+
+function applyCors(req, res) {
+  const origin = req.headers.origin || '';
+  if (CORS_ORIGIN_RE.test(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-sync-token');
+  res.setHeader('Access-Control-Max-Age', '600');
+}
+
 async function handleApi(req, res, url) {
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
   if (!tokenOk(req)) return json(res, 401, { error: '未配对或 token 错误' });
 
   if (url.pathname === '/api/ping' && req.method === 'GET') {
